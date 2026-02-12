@@ -1,0 +1,25 @@
+{
+  "name": "portfolio-backend",
+  "version": "1.0.0",
+  "description": "Backend serverless para formulario de contacto del portafolio",
+  "main": "index.js",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "netlify build"
+  },
+  "keywords": [
+    "serverless",
+    "netlify",
+    "contact-form"
+  ],
+  "author": "Juan Esteban López Moreno",
+  "license": "MIT",
+  "dependencies": {
+    "@netlify/functions": "^2.4.1",
+    "nodemailer": "^6.10.1"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^7.0.9",
+    "netlify-cli": "^17.10.1"
+  }
+}
