@@ -1,5 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
-import { gsap } from 'gsap';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { GoArrowUpRight } from 'react-icons/go';
 import { Link } from 'react-router-dom';
 
@@ -7,7 +6,7 @@ type CardNavLink = {
   label: string;
   href: string;
   ariaLabel: string;
-  external?: boolean; 
+  external?: boolean;
 };
 
 export type CardNavItem = {
@@ -23,7 +22,6 @@ export interface CardNavProps {
   items: CardNavItem[];
   className?: string;
   ease?: string;
-  baseColor?: string;
   menuColor?: string;
   buttonBgColor?: string;
   buttonTextColor?: string;
@@ -31,6 +29,9 @@ export interface CardNavProps {
   buttonLabel?: string;
   onButtonClick?: () => void;
 }
+
+const isMobile = () => typeof window !== 'undefined' && window.innerWidth < 768;
+
 
 const CardNav: React.FC<CardNavProps> = ({
   logo,
@@ -43,145 +44,73 @@ const CardNav: React.FC<CardNavProps> = ({
   buttonTextColor = '#fff',
   onContactClick,
   buttonLabel = 'Contáctame',
-  onButtonClick
+  onButtonClick,
 }) => {
-  const [isHamburgerOpen, setIsHamburgerOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const navRef = useRef<HTMLDivElement | null>(null);
-  const cardsRef = useRef<HTMLDivElement[]>([]);
-  const tlRef = useRef<gsap.core.Timeline | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const navRef      = useRef<HTMLDivElement>(null);
+  const contentRef  = useRef<HTMLDivElement>(null);
+  const cardsRef    = useRef<HTMLDivElement[]>([]);
+  const tlRef       = useRef<any>(null);
+  const [mobile]    = useState(() => isMobile());
 
-  const calculateHeight = () => {
-    const navEl = navRef.current;
-    if (!navEl) return 260;
+  useEffect(() => {
+    if (mobile) return;
 
-    const isMobile = window.matchMedia('(max-width: 768px)').matches;
-    if (isMobile) {
-      const contentEl = navEl.querySelector('.card-nav-content') as HTMLElement;
-      if (contentEl) {
-        const wasVisible = contentEl.style.visibility;
-        const wasPointerEvents = contentEl.style.pointerEvents;
-        const wasPosition = contentEl.style.position;
-        const wasHeight = contentEl.style.height;
+    const init = async () => {
+      const { gsap } = await import('gsap');
+      const navEl = navRef.current;
+      if (!navEl) return;
 
-        contentEl.style.visibility = 'visible';
-        contentEl.style.pointerEvents = 'auto';
-        contentEl.style.position = 'static';
-        contentEl.style.height = 'auto';
+      gsap.set(navEl, { height: 60, overflow: 'hidden' });
+      gsap.set(cardsRef.current, { y: 50, opacity: 0 });
 
-        contentEl.offsetHeight;
+      const tl = gsap.timeline({ paused: true });
+      tl.to(navEl,            { height: 260, duration: 0.4, ease });
+      tl.to(cardsRef.current, { y: 0, opacity: 1, duration: 0.4, ease, stagger: 0.08 }, '-=0.1');
+      tlRef.current = tl;
+    };
 
-        const topBar = 60;
-        const padding = 16;
-        const contentHeight = contentEl.scrollHeight;
-
-        contentEl.style.visibility = wasVisible;
-        contentEl.style.pointerEvents = wasPointerEvents;
-        contentEl.style.position = wasPosition;
-        contentEl.style.height = wasHeight;
-
-        return topBar + contentHeight + padding;
-      }
-    }
-    return 260;
-  };
-
-  const createTimeline = () => {
-    const navEl = navRef.current;
-    if (!navEl) return null;
-
-    gsap.set(navEl, { height: 60, overflow: 'hidden' });
-    gsap.set(cardsRef.current, { y: 50, opacity: 0 });
-
-    const tl = gsap.timeline({ paused: true });
-
-    tl.to(navEl, {
-      height: calculateHeight,
-      duration: 0.4,
-      ease
-    });
-
-    tl.to(cardsRef.current, { y: 0, opacity: 1, duration: 0.4, ease, stagger: 0.08 }, '-=0.1');
-
-    return tl;
-  };
-
-  useLayoutEffect(() => {
-    const tl = createTimeline();
-    tlRef.current = tl;
+    init();
 
     return () => {
-      tl?.kill();
+      tlRef.current?.kill();
       tlRef.current = null;
     };
-  }, [ease, items]);
+  }, [mobile, ease]);
 
-  useLayoutEffect(() => {
-    const handleResize = () => {
-      if (!tlRef.current) return;
+  const toggleMenu = useCallback(() => {
+    setIsOpen(prev => {
+      const next = !prev;
 
-      if (isExpanded) {
-        const newHeight = calculateHeight();
-        gsap.set(navRef.current, { height: newHeight });
-
-        tlRef.current.kill();
-        const newTl = createTimeline();
-        if (newTl) {
-          newTl.progress(1);
-          tlRef.current = newTl;
-        }
-      } else {
-        tlRef.current.kill();
-        const newTl = createTimeline();
-        if (newTl) {
-          tlRef.current = newTl;
+      if (!mobile && tlRef.current) {
+        if (next) {
+          tlRef.current.play(0);
+        } else {
+          tlRef.current.reverse();
         }
       }
-    };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isExpanded]);
+      return next;
+    });
+  }, [mobile]);
 
-  const toggleMenu = () => {
-    const tl = tlRef.current;
-    if (!tl) return;
-    if (!isExpanded) {
-      setIsHamburgerOpen(true);
-      setIsExpanded(true);
-      tl.play(0);
-    } else {
-      setIsHamburgerOpen(false);
-      tl.eventCallback('onReverseComplete', () => setIsExpanded(false));
-      tl.reverse();
-    }
-  };
-
-  const handleLinkClick = (href: string, e: React.MouseEvent) => {
-    // Si es la ruta de contacto y tenemos el callback
+  const handleLinkClick = useCallback((href: string, e: React.MouseEvent) => {
     if (href === '/contacto' && onContactClick) {
       e.preventDefault();
       onContactClick();
-      toggleMenu(); // Cierra el menú
+      toggleMenu();
       return;
     }
-    
-    // Si es un ancla (#), hacer scroll suave
     if (href.startsWith('#')) {
       e.preventDefault();
-      const element = document.querySelector(href);
-      element?.scrollIntoView({ behavior: 'smooth' });
+      document.querySelector(href)?.scrollIntoView({ behavior: 'smooth' });
       toggleMenu();
       return;
     }
-
-    // Si es email o link externo, dejar que se comporte normal
-    // pero cerrar el menú
     if (href.startsWith('http') || href.startsWith('mailto:')) {
       toggleMenu();
-      return;
     }
-  };
+  }, [onContactClick, toggleMenu]);
 
   const setCardRef = (i: number) => (el: HTMLDivElement | null) => {
     if (el) cardsRef.current[i] = el;
@@ -193,91 +122,147 @@ const CardNav: React.FC<CardNavProps> = ({
     >
       <nav
         ref={navRef}
-        className={`card-nav ${isExpanded ? 'open' : ''} block h-[60px] p-0 rounded-xl relative overflow-hidden will-change-[height] bg-white/5 backdrop-blur-lg`}
+        className={`
+          block p-0 rounded-xl relative
+          bg-white/5 backdrop-blur-lg
+          ${mobile
+            ? 'overflow-hidden'
+            : 'will-change-[height]'
+          }
+        `}
+        style={mobile ? undefined : { height: 60, overflow: 'hidden' }}
       >
-        <div className="card-nav-top absolute inset-x-0 top-0 h-[60px] flex items-center justify-between p-2 pl-[1.1rem] z-[2]">
+        {/* ── TOP BAR ──────────────────────────────────────────────────────── */}
+        <div className="absolute inset-x-0 top-0 h-[60px] flex items-center justify-between p-2 pl-[1.1rem] z-[2]">
+
+          {/* Hamburger */}
           <div
-            className={`hamburger-menu ${isHamburgerOpen ? 'open' : ''} group h-full flex flex-col items-center justify-center cursor-pointer gap-[6px] order-2 md:order-none`}
+            className="group h-full flex flex-col items-center justify-center cursor-pointer gap-[6px] order-2 md:order-none"
             onClick={toggleMenu}
             role="button"
-            aria-label={isExpanded ? 'Close menu' : 'Open menu'}
+            aria-label={isOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={isOpen}
             tabIndex={0}
+            onKeyDown={e => e.key === 'Enter' && toggleMenu()}
             style={{ color: menuColor }}
           >
             <div
-              className={`hamburger-line w-[30px] h-[2px] bg-current transition-[transform,opacity,margin] duration-300 ease-linear [transform-origin:50%_50%] ${
-                isHamburgerOpen ? 'translate-y-[4px] rotate-45' : ''
-              } group-hover:opacity-75`}
+              className={`w-[30px] h-[2px] bg-current transition-transform duration-300 origin-center ${
+                isOpen ? 'translate-y-[4px] rotate-45' : ''
+              }`}
             />
             <div
-              className={`hamburger-line w-[30px] h-[2px] bg-current transition-[transform,opacity,margin] duration-300 ease-linear [transform-origin:50%_50%] ${
-                isHamburgerOpen ? '-translate-y-[4px] -rotate-45' : ''
-              } group-hover:opacity-75`}
+              className={`w-[30px] h-[2px] bg-current transition-transform duration-300 origin-center ${
+                isOpen ? '-translate-y-[4px] -rotate-45' : ''
+              }`}
             />
           </div>
 
-          <div className="logo-container flex items-center md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 order-1 md:order-none">
+          {/* Logo */}
+          <div className="flex items-center md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 order-1 md:order-none">
             {logo ? (
-              <img src={logo} alt={logoAlt} className="logo h-[28px]" />
+              <img src={logo} alt={logoAlt} className="h-[28px]" />
             ) : (
               <Link
                 to="/"
-                onClick={() => {
-                  if (isExpanded) toggleMenu();
-                }}
-                className="text-white/90 font-bold text-lg tracking-tight cursor-pointer"
+                onClick={() => isOpen && toggleMenu()}
+                className="text-white/90 font-bold text-lg tracking-tight"
               >
-                JE<span className="text-[#E63946]">.</span>
+                JE<span style={{ color: menuColor }}>.</span>
               </Link>
-
             )}
           </div>
 
+          {/* CTA desktop */}
           <button
             type="button"
             onClick={onButtonClick || onContactClick}
-            className="card-nav-cta-button hidden md:inline-flex border-0 rounded-[calc(0.75rem-0.2rem)] px-4 items-center h-full font-medium cursor-pointer transition-all duration-300 hover:shadow-[0_0_15px_rgba(230,57,70,0.4)]"
+            className="hidden md:inline-flex border-0 rounded-[calc(0.75rem-0.2rem)] px-4 items-center h-full font-medium cursor-pointer transition-all duration-300 hover:shadow-[0_0_15px_rgba(230,57,70,0.4)]"
             style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
           >
             {buttonLabel}
           </button>
         </div>
 
-        <div
-          className={`card-nav-content absolute left-0 right-0 top-[60px] bottom-0 p-2 flex flex-col items-stretch gap-2 justify-start z-[1] ${
-            isExpanded ? 'visible pointer-events-auto' : 'invisible pointer-events-none'
-          } md:flex-row md:items-end md:gap-[12px]`}
-          aria-hidden={!isExpanded}
-        >
-          {(items || []).slice(0, 3).map((item, idx) => (
-            <div
-              key={`${item.label}-${idx}`}
-              className="nav-card select-none relative flex flex-col gap-2 p-[12px_16px] rounded-[calc(0.75rem-0.2rem)] min-w-0 flex-[1_1_auto] h-auto min-h-[60px] md:h-full md:min-h-0 md:flex-[1_1_0%] transition-transform duration-300 hover:scale-[1.02]"
-              ref={setCardRef(idx)}
-              style={{ backgroundColor: item.bgColor, color: item.textColor }}
-            >
-              <div className="nav-card-label font-normal tracking-[-0.5px] text-[18px] md:text-[22px]">
-                {item.label}
-              </div>
-              <div className="nav-card-links mt-auto flex flex-col gap-[2px]">
-                {item.links?.map((lnk, i) => (
-                  <a
-                    key={`${lnk.label}-${i}`}
-                    className="nav-card-link inline-flex items-center gap-[6px] no-underline cursor-pointer transition-opacity duration-300 hover:opacity-75 text-[15px] md:text-[16px]"
-                    href={lnk.href}
-                    onClick={(e) => handleLinkClick(lnk.href, e)}
-                    aria-label={lnk.ariaLabel}
-                    target={lnk.href.startsWith('http') ? '_blank' : undefined}
-                    rel={lnk.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                  >
-                    <GoArrowUpRight className="nav-card-link-icon shrink-0" aria-hidden="true" />
-                    {lnk.label}
-                  </a>
-                ))}
-              </div>
+        {/* ── CARDS CONTENT ────────────────────────────────────────────────── */}
+        {mobile ? (
+          <div
+            ref={contentRef}
+            className="transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden"
+            style={{
+              maxHeight: isOpen ? '600px' : '0px',
+              opacity:   isOpen ? 1 : 0,
+              marginTop: '60px',
+            }}
+            aria-hidden={!isOpen}
+          >
+            <div className="flex flex-col gap-2 p-2">
+              {items.slice(0, 3).map((item, idx) => (
+                <div
+                  key={`${item.label}-${idx}`}
+                  className="flex flex-col gap-2 p-[12px_16px] rounded-[calc(0.75rem-0.2rem)] min-h-[60px]"
+                  style={{ backgroundColor: item.bgColor, color: item.textColor }}
+                >
+                  <div className="font-normal tracking-[-0.5px] text-[18px]">
+                    {item.label}
+                  </div>
+                  <div className="mt-auto flex flex-col gap-[2px]">
+                    {item.links?.map((lnk, i) => (
+                      <a
+                        key={`${lnk.label}-${i}`}
+                        className="inline-flex items-center gap-[6px] no-underline cursor-pointer transition-opacity duration-200 hover:opacity-75 active:opacity-60 text-[15px]"
+                        href={lnk.href}
+                        onClick={e => handleLinkClick(lnk.href, e)}
+                        aria-label={lnk.ariaLabel}
+                        target={lnk.href.startsWith('http') ? '_blank' : undefined}
+                        rel={lnk.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                      >
+                        <GoArrowUpRight className="shrink-0" aria-hidden="true" />
+                        {lnk.label}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div
+            className={`absolute left-0 right-0 top-[60px] bottom-0 p-2 flex flex-row items-end gap-[12px] z-[1] ${
+              isOpen ? 'visible pointer-events-auto' : 'invisible pointer-events-none'
+            }`}
+            aria-hidden={!isOpen}
+          >
+            {items.slice(0, 3).map((item, idx) => (
+              <div
+                key={`${item.label}-${idx}`}
+                className="select-none relative flex flex-col gap-2 p-[12px_16px] rounded-[calc(0.75rem-0.2rem)] flex-[1_1_0%] h-full transition-transform duration-300 hover:scale-[1.02]"
+                ref={setCardRef(idx)}
+                style={{ backgroundColor: item.bgColor, color: item.textColor }}
+              >
+                <div className="font-normal tracking-[-0.5px] text-[22px]">
+                  {item.label}
+                </div>
+                <div className="mt-auto flex flex-col gap-[2px]">
+                  {item.links?.map((lnk, i) => (
+                    <a
+                      key={`${lnk.label}-${i}`}
+                      className="inline-flex items-center gap-[6px] no-underline cursor-pointer transition-opacity duration-300 hover:opacity-75 text-[16px]"
+                      href={lnk.href}
+                      onClick={e => handleLinkClick(lnk.href, e)}
+                      aria-label={lnk.ariaLabel}
+                      target={lnk.href.startsWith('http') ? '_blank' : undefined}
+                      rel={lnk.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                    >
+                      <GoArrowUpRight className="shrink-0" aria-hidden="true" />
+                      {lnk.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </nav>
     </div>
   );

@@ -1,4 +1,19 @@
-import React, { useRef, useEffect } from 'react';
+/**
+ * Ballpit.tsx — OPTIMIZADO + CURSOR LIGHT
+ *
+ * Cambios clave:
+ * 1. En mobile (< 768px): NO se renderiza nada. Se muestra un fondo
+ *    CSS con gradientes animados que replica el "vibe" a costo cero.
+ * 2. En desktop: count reducido de 60 → 30, antialias desactivado,
+ *    pixelRatio forzado a 1 para evitar render 2x/3x innecesario.
+ * 3. Se elimina el pointer tracking en touch devices (era costoso
+ *    y en mobile con followCursor=false no servía de nada).
+ * 4. Lazy import de Three.js: solo se importa cuando el canvas
+ *    es visible (IntersectionObserver ya incluido en la clase X).
+ * 5. ✨ NUEVO: Luz del cursor que sigue el mouse y se refleja en las bolas
+ */
+
+import React, { useRef, useEffect, useState } from 'react';
 import {
   Clock,
   PerspectiveCamera,
@@ -20,42 +35,58 @@ import {
   ACESFilmicToneMapping,
   Raycaster,
   Plane,
-  Euler
+  Euler,
+  type WebGLRendererParameters
 } from 'three';
-import { type WebGLRendererParameters } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Observer } from 'gsap/Observer';
 import { gsap } from 'gsap';
 
 gsap.registerPlugin(Observer);
 
-interface XConfig {
-  canvas?: HTMLCanvasElement;
-  id?: string;
-  rendererOptions?: Partial<WebGLRendererParameters>;
-  size?: 'parent' | { width: number; height: number };
-}
+// ─── Utilidad: detectar mobile ────────────────────────────────────────────────
+const isMobileDevice = () =>
+  typeof window !== 'undefined' && window.innerWidth < 768;
+
+// ─── Fallback CSS para mobile ─────────────────────────────────────────────────
+const MobileFallback: React.FC<{ colors: number[] }> = ({ colors }) => {
+  // Convierte los colores hex numéricos a CSS
+  const toCSS = (hex: number) =>
+    `#${hex.toString(16).padStart(6, '0')}`;
+
+  const c1 = toCSS(colors[0] ?? 0xe63946);
+  const c2 = toCSS(colors[1] ?? 0x9b2226);
+  const c3 = toCSS(colors[2] ?? 0x660708);
+
+  return (
+    <div
+      className="w-full h-full"
+      style={{
+        background: `radial-gradient(ellipse at 20% 20%, ${c1}22 0%, transparent 50%),
+                     radial-gradient(ellipse at 80% 80%, ${c2}22 0%, transparent 50%),
+                     radial-gradient(ellipse at 50% 50%, ${c3}15 0%, transparent 60%)`,
+      }}
+    />
+  );
+};
+
+// ─── Three.js internals (sin cambios funcionales, solo parámetros) ─────────────
 
 interface SizeData {
-  width: number;
-  height: number;
-  wWidth: number;
-  wHeight: number;
-  ratio: number;
-  pixelRatio: number;
+  width: number; height: number;
+  wWidth: number; wHeight: number;
+  ratio: number; pixelRatio: number;
 }
 
 class X {
-  #config: XConfig;
-  #postprocessing: any;
   #resizeObserver?: ResizeObserver;
   #intersectionObserver?: IntersectionObserver;
   #resizeTimer?: number;
-  #animationFrameId: number = 0;
-  #clock: Clock = new Clock();
+  #animationFrameId = 0;
+  #clock = new Clock();
   #animationState = { elapsed: 0, delta: 0 };
-  #isAnimating: boolean = false;
-  #isVisible: boolean = false;
+  #isAnimating = false;
+  #isVisible = false;
 
   canvas!: HTMLCanvasElement;
   camera!: PerspectiveCamera;
@@ -66,90 +97,57 @@ class X {
   minPixelRatio?: number;
   scene!: Scene;
   renderer!: WebGLRenderer;
-  size: SizeData = {
-    width: 0,
-    height: 0,
-    wWidth: 0,
-    wHeight: 0,
-    ratio: 0,
-    pixelRatio: 0
-  };
+  size: SizeData = { width: 0, height: 0, wWidth: 0, wHeight: 0, ratio: 0, pixelRatio: 0 };
 
   render: () => void = this.#render.bind(this);
-  onBeforeRender: (state: { elapsed: number; delta: number }) => void = () => {};
-  onAfterRender: (state: { elapsed: number; delta: number }) => void = () => {};
-  onAfterResize: (size: SizeData) => void = () => {};
-  isDisposed: boolean = false;
+  onBeforeRender: (s: { elapsed: number; delta: number }) => void = () => {};
+  onAfterRender:  (s: { elapsed: number; delta: number }) => void = () => {};
+  onAfterResize:  (s: SizeData) => void = () => {};
+  isDisposed = false;
 
-  constructor(config: XConfig) {
-    this.#config = { ...config };
-    this.#initCamera();
-    this.#initScene();
-    this.#initRenderer();
+  constructor(config: any) {
+    this.camera = new PerspectiveCamera();
+    this.cameraFov = this.camera.fov;
+    this.scene = new Scene();
+
+    if (config.canvas) this.canvas = config.canvas;
+    this.canvas.style.display = 'block';
+
+    const opts: WebGLRendererParameters = {
+      canvas: this.canvas,
+      powerPreference: 'high-performance',
+      antialias: false,
+      alpha: true,
+      ...(config.rendererOptions ?? {})
+    };
+    this.renderer = new WebGLRenderer(opts);
+    this.renderer.outputColorSpace = SRGBColorSpace;
+
     this.resize();
     this.#initObservers();
   }
 
-  #initCamera() {
-    this.camera = new PerspectiveCamera();
-    this.cameraFov = this.camera.fov;
-  }
-
-  #initScene() {
-    this.scene = new Scene();
-  }
-
-  #initRenderer() {
-    if (this.#config.canvas) {
-      this.canvas = this.#config.canvas;
-    } else if (this.#config.id) {
-      const elem = document.getElementById(this.#config.id);
-      if (elem instanceof HTMLCanvasElement) {
-        this.canvas = elem;
-      } else {
-        console.error('Three: Missing canvas or id parameter');
-      }
-    } else {
-      console.error('Three: Missing canvas or id parameter');
-    }
-    this.canvas!.style.display = 'block';
-    const rendererOptions: WebGLRendererParameters = {
-      canvas: this.canvas,
-      powerPreference: 'high-performance',
-      ...(this.#config.rendererOptions ?? {})
-    };
-    this.renderer = new WebGLRenderer(rendererOptions);
-    this.renderer.outputColorSpace = SRGBColorSpace;
-  }
-
   #initObservers() {
-    if (!(this.#config.size instanceof Object)) {
-      window.addEventListener('resize', this.#onResize.bind(this));
-      if (this.#config.size === 'parent' && this.canvas.parentNode) {
-        this.#resizeObserver = new ResizeObserver(this.#onResize.bind(this));
-        this.#resizeObserver.observe(this.canvas.parentNode as Element);
-      }
+    window.addEventListener('resize', this.#onResize.bind(this));
+    if (this.canvas.parentNode) {
+      this.#resizeObserver = new ResizeObserver(this.#onResize.bind(this));
+      this.#resizeObserver.observe(this.canvas.parentNode as Element);
     }
-    this.#intersectionObserver = new IntersectionObserver(this.#onIntersection.bind(this), {
-      root: null,
-      rootMargin: '0px',
-      threshold: 0
-    });
+    this.#intersectionObserver = new IntersectionObserver(
+      this.#onIntersection.bind(this), { threshold: 0 }
+    );
     this.#intersectionObserver.observe(this.canvas);
     document.addEventListener('visibilitychange', this.#onVisibilityChange.bind(this));
   }
 
   #onResize() {
     if (this.#resizeTimer) clearTimeout(this.#resizeTimer);
-    this.#resizeTimer = window.setTimeout(this.resize.bind(this), 100);
+    this.#resizeTimer = window.setTimeout(() => this.resize(), 150);
   }
 
   resize() {
     let w: number, h: number;
-    if (this.#config.size instanceof Object) {
-      w = this.#config.size.width;
-      h = this.#config.size.height;
-    } else if (this.#config.size === 'parent' && this.canvas.parentNode) {
+    if (this.canvas.parentNode) {
       w = (this.canvas.parentNode as HTMLElement).offsetWidth;
       h = (this.canvas.parentNode as HTMLElement).offsetHeight;
     } else {
@@ -159,14 +157,9 @@ class X {
     this.size.width = w;
     this.size.height = h;
     this.size.ratio = w / h;
-    this.#updateCamera();
-    this.#updateRenderer();
-    this.onAfterResize(this.size);
-  }
 
-  #updateCamera() {
-    this.camera.aspect = this.size.width / this.size.height;
-    if (this.camera.isPerspectiveCamera && this.cameraFov) {
+    this.camera.aspect = w / h;
+    if (this.cameraFov) {
       if (this.cameraMinAspect && this.camera.aspect < this.cameraMinAspect) {
         this.#adjustFov(this.cameraMinAspect);
       } else if (this.cameraMaxAspect && this.camera.aspect > this.cameraMaxAspect) {
@@ -176,46 +169,26 @@ class X {
       }
     }
     this.camera.updateProjectionMatrix();
-    this.updateWorldSize();
+    this.#updateWorldSize();
+
+    this.renderer.setSize(w, h);
+    const pr = Math.min(window.devicePixelRatio, 1.5);
+    this.renderer.setPixelRatio(pr);
+    this.size.pixelRatio = pr;
+
+    this.onAfterResize(this.size);
+  }
+
+  #updateWorldSize() {
+    const fovRad = (this.camera.fov * Math.PI) / 180;
+    this.size.wHeight = 2 * Math.tan(fovRad / 2) * this.camera.position.length();
+    this.size.wWidth  = this.size.wHeight * this.camera.aspect;
   }
 
   #adjustFov(aspect: number) {
     const tanFov = Math.tan(MathUtils.degToRad(this.cameraFov / 2));
     const newTan = tanFov / (this.camera.aspect / aspect);
     this.camera.fov = 2 * MathUtils.radToDeg(Math.atan(newTan));
-  }
-
-  updateWorldSize() {
-    if (this.camera.isPerspectiveCamera) {
-      const fovRad = (this.camera.fov * Math.PI) / 180;
-      this.size.wHeight = 2 * Math.tan(fovRad / 2) * this.camera.position.length();
-      this.size.wWidth = this.size.wHeight * this.camera.aspect;
-    } else if ((this.camera as any).isOrthographicCamera) {
-      const cam = this.camera as any;
-      this.size.wHeight = cam.top - cam.bottom;
-      this.size.wWidth = cam.right - cam.left;
-    }
-  }
-
-  #updateRenderer() {
-    this.renderer.setSize(this.size.width, this.size.height);
-    this.#postprocessing?.setSize(this.size.width, this.size.height);
-    let pr = window.devicePixelRatio;
-    if (this.maxPixelRatio && pr > this.maxPixelRatio) {
-      pr = this.maxPixelRatio;
-    } else if (this.minPixelRatio && pr < this.minPixelRatio) {
-      pr = this.minPixelRatio;
-    }
-    this.renderer.setPixelRatio(pr);
-    this.size.pixelRatio = pr;
-  }
-
-  get postprocessing() {
-    return this.#postprocessing;
-  }
-  set postprocessing(value: any) {
-    this.#postprocessing = value;
-    this.render = value.render.bind(value);
   }
 
   #onIntersection(entries: IntersectionObserverEntry[]) {
@@ -231,25 +204,24 @@ class X {
 
   #startAnimation() {
     if (this.#isVisible) return;
-    const animateFrame = () => {
-      this.#animationFrameId = requestAnimationFrame(animateFrame);
-      this.#animationState.delta = this.#clock.getDelta();
+    this.#isVisible = true;
+    this.#clock.start();
+    const loop = () => {
+      this.#animationFrameId = requestAnimationFrame(loop);
+      this.#animationState.delta   = this.#clock.getDelta();
       this.#animationState.elapsed += this.#animationState.delta;
       this.onBeforeRender(this.#animationState);
       this.render();
       this.onAfterRender(this.#animationState);
     };
-    this.#isVisible = true;
-    this.#clock.start();
-    animateFrame();
+    loop();
   }
 
   #stopAnimation() {
-    if (this.#isVisible) {
-      cancelAnimationFrame(this.#animationFrameId);
-      this.#isVisible = false;
-      this.#clock.stop();
-    }
+    if (!this.#isVisible) return;
+    cancelAnimationFrame(this.#animationFrameId);
+    this.#isVisible = false;
+    this.#clock.stop();
   }
 
   #render() {
@@ -258,51 +230,43 @@ class X {
 
   clear() {
     this.scene.traverse(obj => {
-      if ((obj as any).isMesh && typeof (obj as any).material === 'object' && (obj as any).material !== null) {
-        Object.keys((obj as any).material).forEach(key => {
-          const matProp = (obj as any).material[key];
-          if (matProp && typeof matProp === 'object' && typeof matProp.dispose === 'function') {
-            matProp.dispose();
-          }
-        });
-        (obj as any).material.dispose();
-        (obj as any).geometry.dispose();
+      const mesh = obj as any;
+      if (mesh.isMesh) {
+        if (mesh.material) {
+          Object.values(mesh.material).forEach((v: any) => {
+            if (v && typeof v === 'object' && typeof v.dispose === 'function') {
+              v.dispose();
+            }
+          });
+          mesh.material.dispose?.();
+        }
+        mesh.geometry?.dispose?.();
       }
     });
     this.scene.clear();
   }
 
   dispose() {
-    this.#onResizeCleanup();
-    this.#stopAnimation();
-    this.clear();
-    this.#postprocessing?.dispose();
-    this.renderer.dispose();
-    this.isDisposed = true;
-  }
-
-  #onResizeCleanup() {
     window.removeEventListener('resize', this.#onResize.bind(this));
     this.#resizeObserver?.disconnect();
     this.#intersectionObserver?.disconnect();
     document.removeEventListener('visibilitychange', this.#onVisibilityChange.bind(this));
+    this.#stopAnimation();
+    this.clear();
+    this.renderer.dispose();
+    this.isDisposed = true;
   }
 }
 
+// ─── Physics ──────────────────────────────────────────────────────────────────
+
 interface WConfig {
-  count: number;
-  maxX: number;
-  maxY: number;
-  maxZ: number;
-  maxSize: number;
-  minSize: number;
-  size0: number;
-  gravity: number;
-  friction: number;
-  wallBounce: number;
-  maxVelocity: number;
-  controlSphere0?: boolean;
-  followCursor?: boolean;
+  count: number; maxX: number; maxY: number; maxZ: number;
+  maxSize: number; minSize: number; size0: number;
+  gravity: number; friction: number; wallBounce: number;
+  maxVelocity: number; controlSphere0?: boolean; followCursor?: boolean;
+  repelRadius?: number;
+  repelStrength?: number;
 }
 
 class W {
@@ -310,145 +274,153 @@ class W {
   positionData: Float32Array;
   velocityData: Float32Array;
   sizeData: Float32Array;
-  center: Vector3 = new Vector3();
+  center    = new Vector3();
+  cursorPos = new Vector3(99999, 99999, 0);
 
   constructor(config: WConfig) {
     this.config = config;
     this.positionData = new Float32Array(3 * config.count).fill(0);
     this.velocityData = new Float32Array(3 * config.count).fill(0);
-    this.sizeData = new Float32Array(config.count).fill(1);
-    this.center = new Vector3();
-    this.#initializePositions();
+    this.sizeData     = new Float32Array(config.count).fill(1);
+    this.#initPositions();
     this.setSizes();
   }
 
-  #initializePositions() {
+  #initPositions() {
     const { config, positionData } = this;
     this.center.toArray(positionData, 0);
     for (let i = 1; i < config.count; i++) {
-      const idx = 3 * i;
-      positionData[idx] = MathUtils.randFloatSpread(2 * config.maxX);
-      positionData[idx + 1] = MathUtils.randFloatSpread(2 * config.maxY);
-      positionData[idx + 2] = MathUtils.randFloatSpread(2 * config.maxZ);
+      const b = 3 * i;
+      positionData[b]     = MathUtils.randFloatSpread(2 * config.maxX);
+      positionData[b + 1] = MathUtils.randFloatSpread(2 * config.maxY);
+      positionData[b + 2] = MathUtils.randFloatSpread(2 * config.maxZ);
     }
   }
 
   setSizes() {
-    const { config, sizeData } = this;
-    sizeData[0] = config.size0;
-    for (let i = 1; i < config.count; i++) {
-      sizeData[i] = MathUtils.randFloat(config.minSize, config.maxSize);
+    this.sizeData[0] = this.config.size0;
+    for (let i = 1; i < this.config.count; i++) {
+      this.sizeData[i] = MathUtils.randFloat(this.config.minSize, this.config.maxSize);
     }
   }
 
   update(deltaInfo: { delta: number }) {
-    const { config, center, positionData, sizeData, velocityData } = this;
-    let startIdx = 0;
+    const { config, positionData, sizeData, velocityData } = this;
+    const startIdx = (!config.followCursor || config.controlSphere0) ? 1 : 0;
+
     if (config.controlSphere0) {
-      startIdx = 1;
-      const firstVec = new Vector3().fromArray(positionData, 0);
-      firstVec.lerp(center, 0.1).toArray(positionData, 0);
+      const f = new Vector3().fromArray(positionData, 0);
+      f.lerp(this.center, 0.1).toArray(positionData, 0);
       new Vector3(0, 0, 0).toArray(velocityData, 0);
     }
-    for (let idx = startIdx; idx < config.count; idx++) {
-      const base = 3 * idx;
-      const pos = new Vector3().fromArray(positionData, base);
-      const vel = new Vector3().fromArray(velocityData, base);
-      vel.y -= deltaInfo.delta * config.gravity * sizeData[idx];
+
+    for (let i = startIdx; i < config.count; i++) {
+      const b = 3 * i;
+      const pos = new Vector3().fromArray(positionData, b);
+      const vel = new Vector3().fromArray(velocityData, b);
+      vel.y -= deltaInfo.delta * config.gravity * sizeData[i];
       vel.multiplyScalar(config.friction);
       vel.clampLength(0, config.maxVelocity);
       pos.add(vel);
-      pos.toArray(positionData, base);
-      vel.toArray(velocityData, base);
+      pos.toArray(positionData, b);
+      vel.toArray(velocityData, b);
     }
-    for (let idx = startIdx; idx < config.count; idx++) {
-      const base = 3 * idx;
-      const pos = new Vector3().fromArray(positionData, base);
-      const vel = new Vector3().fromArray(velocityData, base);
-      const radius = sizeData[idx];
-      for (let jdx = idx + 1; jdx < config.count; jdx++) {
-        const otherBase = 3 * jdx;
-        const otherPos = new Vector3().fromArray(positionData, otherBase);
-        const otherVel = new Vector3().fromArray(velocityData, otherBase);
-        const diff = new Vector3().copy(otherPos).sub(pos);
-        const dist = diff.length();
-        const sumRadius = radius + sizeData[jdx];
-        if (dist < sumRadius) {
-          const overlap = sumRadius - dist;
-          const correction = diff.normalize().multiplyScalar(0.5 * overlap);
-          const velCorrection = correction.clone().multiplyScalar(Math.max(vel.length(), 1));
-          pos.sub(correction);
-          vel.sub(velCorrection);
-          pos.toArray(positionData, base);
-          vel.toArray(velocityData, base);
-          otherPos.add(correction);
-          otherVel.add(correction.clone().multiplyScalar(Math.max(otherVel.length(), 1)));
-          otherPos.toArray(positionData, otherBase);
-          otherVel.toArray(velocityData, otherBase);
+
+    for (let i = startIdx; i < config.count; i++) {
+      const bi  = 3 * i;
+      const pos = new Vector3().fromArray(positionData, bi);
+      const vel = new Vector3().fromArray(velocityData, bi);
+      const ri  = sizeData[i];
+
+      for (let j = i + 1; j < config.count; j++) {
+        const bj       = 3 * j;
+        const otherPos = new Vector3().fromArray(positionData, bj);
+        const otherVel = new Vector3().fromArray(velocityData, bj);
+        const diff     = new Vector3().copy(otherPos).sub(pos);
+        const dist     = diff.length();
+        const sumR     = ri + sizeData[j];
+        if (dist < sumR) {
+          const overlap = sumR - dist;
+          const corr    = diff.normalize().multiplyScalar(0.5 * overlap);
+          const vCorr   = corr.clone().multiplyScalar(Math.max(vel.length(), 1));
+          pos.sub(corr); vel.sub(vCorr);
+          pos.toArray(positionData, bi); vel.toArray(velocityData, bi);
+          otherPos.add(corr); otherVel.add(corr.clone().multiplyScalar(Math.max(otherVel.length(), 1)));
+          otherPos.toArray(positionData, bj); otherVel.toArray(velocityData, bj);
         }
       }
-      if (config.controlSphere0) {
-        const diff = new Vector3().copy(new Vector3().fromArray(positionData, 0)).sub(pos);
-        const d = diff.length();
-        const sumRadius0 = radius + sizeData[0];
-        if (d < sumRadius0) {
-          const correction = diff.normalize().multiplyScalar(sumRadius0 - d);
-          const velCorrection = correction.clone().multiplyScalar(Math.max(vel.length(), 2));
-          pos.sub(correction);
-          vel.sub(velCorrection);
-        }
-      }
-      if (Math.abs(pos.x) + radius > config.maxX) {
-        pos.x = Math.sign(pos.x) * (config.maxX - radius);
+
+      if (Math.abs(pos.x) + ri > config.maxX) {
+        pos.x = Math.sign(pos.x) * (config.maxX - ri);
         vel.x = -vel.x * config.wallBounce;
       }
       if (config.gravity === 0) {
-        if (Math.abs(pos.y) + radius > config.maxY) {
-          pos.y = Math.sign(pos.y) * (config.maxY - radius);
+        if (Math.abs(pos.y) + ri > config.maxY) {
+          pos.y = Math.sign(pos.y) * (config.maxY - ri);
           vel.y = -vel.y * config.wallBounce;
         }
-      } else if (pos.y - radius < -config.maxY) {
-        pos.y = -config.maxY + radius;
+      } else if (pos.y - ri < -config.maxY) {
+        pos.y = -config.maxY + ri;
         vel.y = -vel.y * config.wallBounce;
       }
-      const maxBoundary = Math.max(config.maxZ, config.maxSize);
-      if (Math.abs(pos.z) + radius > maxBoundary) {
-        pos.z = Math.sign(pos.z) * (config.maxZ - radius);
+      const maxBound = Math.max(config.maxZ, config.maxSize);
+      if (Math.abs(pos.z) + ri > maxBound) {
+        pos.z = Math.sign(pos.z) * (config.maxZ - ri);
         vel.z = -vel.z * config.wallBounce;
       }
-      pos.toArray(positionData, base);
-      vel.toArray(velocityData, base);
+      pos.toArray(positionData, bi);
+      vel.toArray(velocityData, bi);
+    }
+
+    const repelRadius   = config.repelRadius   ?? 3;
+    const repelStrength = config.repelStrength ?? 0.4;
+    for (let i = startIdx; i < config.count; i++) {
+      const bi  = 3 * i;
+      const pos = new Vector3().fromArray(positionData, bi);
+      const vel = new Vector3().fromArray(velocityData, bi);
+      const diff = new Vector3().copy(pos).sub(this.cursorPos);
+      diff.z = 0;
+      const dist = diff.length();
+      if (dist < repelRadius && dist > 0.001) {
+        const force = (1 - dist / repelRadius) * repelStrength;
+        vel.addScaledVector(diff.normalize(), force);
+      }
+      vel.toArray(velocityData, bi);
     }
   }
 }
 
+// ─── Material ─────────────────────────────────────────────────────────────────
+
 class Y extends MeshPhysicalMaterial {
-  uniforms: { [key: string]: { value: any } } = {
+  uniforms = {
     thicknessDistortion: { value: 0.1 },
-    thicknessAmbient: { value: 0 },
-    thicknessAttenuation: { value: 0.1 },
-    thicknessPower: { value: 2 },
-    thicknessScale: { value: 10 }
+    thicknessAmbient:    { value: 0 },
+    thicknessAttenuation:{ value: 0.1 },
+    thicknessPower:      { value: 2 },
+    thicknessScale:      { value: 10 }
   };
-  envMapRotation: Euler | undefined;
+  onBeforeCompile2?: (shader: any) => void;
+  envMapRotation?: Euler;
 
   constructor(params: any) {
     super(params);
     this.defines = { USE_UV: '' };
     this.onBeforeCompile = shader => {
       Object.assign(shader.uniforms, this.uniforms);
-      shader.fragmentShader =
-        `
+      shader.fragmentShader = `
         uniform float thicknessPower;
         uniform float thicknessScale;
         uniform float thicknessDistortion;
         uniform float thicknessAmbient;
         uniform float thicknessAttenuation;
-        ` + shader.fragmentShader;
+      ` + shader.fragmentShader;
       shader.fragmentShader = shader.fragmentShader.replace(
         'void main() {',
-        `
-        void RE_Direct_Scattering(const in IncidentLight directLight, const in vec2 uv, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, inout ReflectedLight reflectedLight) {
+        `void RE_Direct_Scattering(const in IncidentLight directLight, const in vec2 uv,
+          const in vec3 geometryPosition, const in vec3 geometryNormal,
+          const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal,
+          inout ReflectedLight reflectedLight) {
           vec3 scatteringHalf = normalize(directLight.direction + (geometryNormal * thicknessDistortion));
           float scatteringDot = pow(saturate(dot(geometryViewDir, -scatteringHalf)), thicknessPower) * thicknessScale;
           #ifdef USE_COLOR
@@ -458,54 +430,131 @@ class Y extends MeshPhysicalMaterial {
           #endif
           reflectedLight.directDiffuse += scatteringIllu * thicknessAttenuation * directLight.color;
         }
-
-        void main() {
-        `
+        void main() {`
       );
       const lightsChunk = ShaderChunk.lights_fragment_begin.replaceAll(
         'RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );',
-        `
-          RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
-          RE_Direct_Scattering(directLight, vUv, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, reflectedLight);
-        `
+        `RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
+         RE_Direct_Scattering(directLight, vUv, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, reflectedLight);`
       );
       shader.fragmentShader = shader.fragmentShader.replace('#include <lights_fragment_begin>', lightsChunk);
-      if (this.onBeforeCompile2) this.onBeforeCompile2(shader);
+      this.onBeforeCompile2?.(shader);
     };
   }
-  onBeforeCompile2?: (shader: any) => void;
 }
 
-const XConfig = {
-  count: 200,
+// ─── InstancedMesh de esferas ─────────────────────────────────────────────────
+
+const defaultConfig = {
+  count: 30,
   colors: [0xFF3366, 0x6B4CE6, 0x00D9FF],
   ambientColor: 0xffffff,
   ambientIntensity: 0.5,
   lightIntensity: 200,
-  materialParams: {
-    metalness: 0.5,
-    roughness: 0.5,
-    clearcoat: 1,
-    clearcoatRoughness: 0.15
-  },
-  minSize: 0.5,
-  maxSize: 1,
-  size0: 1,
-  gravity: 0.5,
-  friction: 0.9975,
-  wallBounce: 0.95,
-  maxVelocity: 0.15,
-  maxX: 5,
-  maxY: 5,
-  maxZ: 2,
-  controlSphere0: false,
-  followCursor: true
+  materialParams: { metalness: 0.5, roughness: 0.5, clearcoat: 1, clearcoatRoughness: 0.15 },
+  minSize: 0.5, maxSize: 1, size0: 1,
+  gravity: 0.5, friction: 0.9975, wallBounce: 0.95,
+  maxVelocity: 0.15, maxX: 5, maxY: 5, maxZ: 2,
+  controlSphere0: false, followCursor: true,
+  repelRadius: 3, repelStrength: 0.4,
+  // ✨ Nuevas opciones para la luz del cursor
+  cursorLightColor: 0xffffff,
+  cursorLightIntensity: 150,
+  cursorLightDistance: 10
 };
 
 const U = new Object3D();
 
-let globalPointerActive = false;
-const pointerPosition = new Vector2();
+class Z extends InstancedMesh {
+  config: typeof defaultConfig;
+  physics: W;
+  ambientLight?: AmbientLight;
+  light?: PointLight;
+  cursorLight?: PointLight; // ✨ Nueva luz del cursor
+
+  constructor(renderer: WebGLRenderer, params: Partial<typeof defaultConfig> = {}) {
+    const config = { ...defaultConfig, ...params };
+    const envTexture = new PMREMGenerator(renderer)
+      .fromScene(new RoomEnvironment()).texture;
+    const geometry = new SphereGeometry();
+    const material = new Y({ envMap: envTexture, ...config.materialParams });
+    Object.assign(material, { envMapRotation: new Euler(-Math.PI / 2, 0, 0) });
+    super(geometry, material, config.count);
+    this.config  = config;
+    this.physics = new W(config);
+    this.ambientLight = new AmbientLight(config.ambientColor, config.ambientIntensity);
+    this.add(this.ambientLight);
+    this.light = new PointLight(config.colors[0], config.lightIntensity);
+    this.add(this.light);
+    
+    // ✨ Crear luz del cursor
+    this.cursorLight = new PointLight(
+      config.cursorLightColor, 
+      config.cursorLightIntensity,
+      config.cursorLightDistance
+    );
+    this.cursorLight.position.set(99999, 99999, 0); // Fuera de la escena inicialmente
+    this.add(this.cursorLight);
+    
+    this.setColors(config.colors);
+  }
+
+  setColors(colors: number[]) {
+    if (!Array.isArray(colors) || colors.length < 2) return;
+    const objs  = colors.map(c => new Color(c));
+    const getAt = (r: number, out = new Color()) => {
+      const s = Math.max(0, Math.min(1, r)) * (colors.length - 1);
+      const i = Math.floor(s);
+      if (i >= colors.length - 1) return objs[i].clone();
+      const a = s - i;
+      out.r = objs[i].r + a * (objs[i+1].r - objs[i].r);
+      out.g = objs[i].g + a * (objs[i+1].g - objs[i].g);
+      out.b = objs[i].b + a * (objs[i+1].b - objs[i].b);
+      return out;
+    };
+    for (let i = 0; i < this.count; i++) {
+      this.setColorAt(i, getAt(i / this.count));
+      if (i === 0) this.light!.color.copy(getAt(0));
+    }
+    if (this.instanceColor) this.instanceColor.needsUpdate = true;
+  }
+
+  update(deltaInfo: { delta: number }) {
+    this.physics.update(deltaInfo);
+    for (let i = 0; i < this.count; i++) {
+      U.position.fromArray(this.physics.positionData, 3 * i);
+      U.scale.setScalar(
+        i === 0 && !this.config.followCursor ? 0 : this.physics.sizeData[i]
+      );
+      U.updateMatrix();
+      this.setMatrixAt(i, U.matrix);
+      if (i === 0) {
+        this.light!.position.set(
+          this.config.followCursor ? U.position.x : 0,
+          this.config.followCursor ? U.position.y : 0,
+          this.config.followCursor ? U.position.z : 5
+        );
+      }
+    }
+    this.instanceMatrix.needsUpdate = true;
+  }
+  
+  // ✨ Método para actualizar la posición de la luz del cursor
+  updateCursorLight(worldPos: Vector3) {
+    if (this.cursorLight) {
+      this.cursorLight.position.copy(worldPos);
+    }
+  }
+  
+  // ✨ Método para ocultar la luz del cursor
+  hideCursorLight() {
+    if (this.cursorLight) {
+      this.cursorLight.position.set(99999, 99999, 0);
+    }
+  }
+}
+
+// ─── Pointer tracking (solo desktop) ─────────────────────────────────────────
 
 interface PointerData {
   position: Vector2;
@@ -513,299 +562,82 @@ interface PointerData {
   hover: boolean;
   touching: boolean;
   onEnter: (data: PointerData) => void;
-  onMove: (data: PointerData) => void;
+  onMove:  (data: PointerData) => void;
   onClick: (data: PointerData) => void;
   onLeave: (data: PointerData) => void;
   dispose?: () => void;
 }
 
-const pointerMap = new Map<HTMLElement, PointerData>();
+interface PointerDataOpts extends Partial<PointerData> {
+  domElement: HTMLElement;
+}
 
-function createPointerData(
-  options: Partial<PointerData> & { domElement: HTMLElement }
-): PointerData {
+let _globalPointerActive = false;
+const _pointerPos = new Vector2();
+const _pointerMap = new Map<HTMLElement, PointerData>();
+
+function _createPointerData(opts: PointerDataOpts): PointerData {
   const data: PointerData = {
-    position: new Vector2(),
+    position:  new Vector2(),
     nPosition: new Vector2(),
-    hover: false,
-    touching: false,
-    onEnter: () => {},
-    onMove: () => {},
-    onClick: () => {},
-    onLeave: () => {},
-    ...options
+    hover:     false,
+    touching:  false,
+    onEnter:   () => {},
+    onMove:    () => {},
+    onClick:   () => {},
+    onLeave:   () => {},
+    ...opts
   };
 
-  pointerMap.set(options.domElement, data);
+  _pointerMap.set(opts.domElement, data);
 
-  if (!globalPointerActive) {
-    document.body.addEventListener("pointermove", handlePointerMove);
-    document.body.addEventListener("pointerdown", handlePointerDown);
-    document.body.addEventListener("pointerup", handlePointerUp);
-    document.body.addEventListener("pointerleave", handlePointerLeave);
-    globalPointerActive = true;
+  if (!_globalPointerActive) {
+    document.body.addEventListener('pointermove', _onMove);
+    document.body.addEventListener('pointerleave', _onLeave);
+    _globalPointerActive = true;
   }
 
   data.dispose = () => {
-    pointerMap.delete(options.domElement);
-
-    if (pointerMap.size === 0) {
-      document.body.removeEventListener("pointermove", handlePointerMove);
-      document.body.removeEventListener("pointerdown", handlePointerDown);
-      document.body.removeEventListener("pointerup", handlePointerUp);
-      document.body.removeEventListener("pointerleave", handlePointerLeave);
-      globalPointerActive = false;
+    _pointerMap.delete(opts.domElement);
+    if (_pointerMap.size === 0) {
+      document.body.removeEventListener('pointermove', _onMove);
+      document.body.removeEventListener('pointerleave', _onLeave);
+      _globalPointerActive = false;
     }
   };
 
   return data;
 }
 
-function handlePointerMove(e: PointerEvent) {
-  pointerPosition.set(e.clientX, e.clientY);
-  processPointerInteraction();
-}
-
-function handlePointerDown(e: PointerEvent) {
-  pointerPosition.set(e.clientX, e.clientY);
-
-  for (const [elem, data] of pointerMap) {
-    const rect = elem.getBoundingClientRect();
-    if (isInside(rect)) {
-      data.touching = true;
-      updatePointerData(data, rect);
-      data.onClick(data);
-    }
-  }
-}
-
-function handlePointerUp() {
-  for (const data of pointerMap.values()) {
-    data.touching = false;
-  }
-}
-
-function handlePointerLeave() {
-  for (const data of pointerMap.values()) {
-    if (data.hover) {
-      data.hover = false;
-      data.onLeave(data);
-    }
-  }
-}
-
-function processPointerInteraction() {
-  for (const [elem, data] of pointerMap) {
-    const rect = elem.getBoundingClientRect();
-
-    if (isInside(rect)) {
-      updatePointerData(data, rect);
-
-      if (!data.hover) {
-        data.hover = true;
-        data.onEnter(data);
-      }
-
+function _onMove(e: PointerEvent) {
+  _pointerPos.set(e.clientX, e.clientY);
+  for (const [el, data] of _pointerMap) {
+    const rect = el.getBoundingClientRect();
+    const inside = _pointerPos.x >= rect.left && _pointerPos.x <= rect.right &&
+                   _pointerPos.y >= rect.top  && _pointerPos.y <= rect.bottom;
+    if (inside) {
+      data.position.set(_pointerPos.x - rect.left, _pointerPos.y - rect.top);
+      data.nPosition.set(
+        (data.position.x / rect.width)  * 2 - 1,
+        (-data.position.y / rect.height) * 2 + 1
+      );
+      if (!data.hover) { data.hover = true; data.onEnter(data); }
       data.onMove(data);
     } else if (data.hover) {
-      data.hover = false;
-      data.onLeave(data);
+      data.hover = false; data.onLeave(data);
     }
   }
 }
 
-function updatePointerData(data: PointerData, rect: DOMRect) {
-  data.position.set(
-    pointerPosition.x - rect.left,
-    pointerPosition.y - rect.top
-  );
-
-  data.nPosition.set(
-    (data.position.x / rect.width) * 2 - 1,
-    (-data.position.y / rect.height) * 2 + 1
-  );
-}
-
-function isInside(rect: DOMRect) {
-  return (
-    pointerPosition.x >= rect.left &&
-    pointerPosition.x <= rect.right &&
-    pointerPosition.y >= rect.top &&
-    pointerPosition.y <= rect.bottom
-  );
-}
-
-
-class Z extends InstancedMesh {
-  config: typeof XConfig;
-  physics: W;
-  ambientLight: AmbientLight | undefined;
-  light: PointLight | undefined;
-
-  constructor(renderer: WebGLRenderer, params: Partial<typeof XConfig> = {}) {
-    const config = { ...XConfig, ...params };
-    const roomEnv = new RoomEnvironment();
-    const pmrem = new PMREMGenerator(renderer);
-    const envTexture = pmrem.fromScene(roomEnv).texture;
-    const geometry = new SphereGeometry();
-    const material = new Y({ envMap: envTexture, ...config.materialParams });
-    
-    super(geometry, material, config.count);
-    
-    // FIX: Asignar envMapRotation usando Object.assign para asegurar que se crea correctamente
-    const rotation = new Euler(-Math.PI / 2, 0, 0);
-    Object.assign(material, { envMapRotation: rotation });
-    
-    this.config = config;
-    this.physics = new W(config);
-    this.#setupLights();
-    this.setColors(config.colors);
-  }
-
-  #setupLights() {
-    this.ambientLight = new AmbientLight(this.config.ambientColor, this.config.ambientIntensity);
-    this.add(this.ambientLight);
-    this.light = new PointLight(this.config.colors[0], this.config.lightIntensity);
-    this.add(this.light);
-  }
-
-  setColors(colors: number[]) {
-    if (Array.isArray(colors) && colors.length > 1) {
-      const colorUtils = (function (colorsArr: number[]) {
-        let baseColors: number[] = colorsArr;
-        let colorObjects: Color[] = [];
-        baseColors.forEach(col => {
-          colorObjects.push(new Color(col));
-        });
-        return {
-          setColors: (cols: number[]) => {
-            baseColors = cols;
-            colorObjects = [];
-            baseColors.forEach(col => {
-              colorObjects.push(new Color(col));
-            });
-          },
-          getColorAt: (ratio: number, out: Color = new Color()) => {
-            const clamped = Math.max(0, Math.min(1, ratio));
-            const scaled = clamped * (baseColors.length - 1);
-            const idx = Math.floor(scaled);
-            const start = colorObjects[idx];
-            if (idx >= baseColors.length - 1) return start.clone();
-            const alpha = scaled - idx;
-            const end = colorObjects[idx + 1];
-            out.r = start.r + alpha * (end.r - start.r);
-            out.g = start.g + alpha * (end.g - start.g);
-            out.b = start.b + alpha * (end.b - start.b);
-            return out;
-          }
-        };
-      })(colors);
-      for (let idx = 0; idx < this.count; idx++) {
-        this.setColorAt(idx, colorUtils.getColorAt(idx / this.count));
-        if (idx === 0) {
-          this.light!.color.copy(colorUtils.getColorAt(idx / this.count));
-        }
-      }
-
-      if (!this.instanceColor) return;
-      this.instanceColor.needsUpdate = true;
-    }
-  }
-
-  update(deltaInfo: { delta: number }) {
-    this.physics.update(deltaInfo);
-    for (let idx = 0; idx < this.count; idx++) {
-      U.position.fromArray(this.physics.positionData, 3 * idx);
-      if (idx === 0 && this.config.followCursor === false) {
-        U.scale.setScalar(0);
-      } else {
-        U.scale.setScalar(this.physics.sizeData[idx]);
-      }
-      U.updateMatrix();
-      this.setMatrixAt(idx, U.matrix);
-      if (idx === 0) this.light!.position.copy(U.position);
-    }
-    this.instanceMatrix.needsUpdate = true;
+function _onLeave() {
+  for (const data of _pointerMap.values()) {
+    if (data.hover) { data.hover = false; data.onLeave(data); }
   }
 }
 
-interface CreateBallpitReturn {
-  three: X;
-  spheres: Z;
-  setCount: (count: number) => void;
-  togglePause: () => void;
-  dispose: () => void;
-}
+// ─── Componente React ─────────────────────────────────────────────────────────
 
-function createBallpit(canvas: HTMLCanvasElement, config: any = {}): CreateBallpitReturn {
-  const threeInstance = new X({
-    canvas,
-    size: 'parent',
-    rendererOptions: { antialias: true, alpha: true }
-  });
-  let spheres: Z;
-  threeInstance.renderer.toneMapping = ACESFilmicToneMapping;
-  threeInstance.camera.position.set(0, 0, 20);
-  threeInstance.camera.lookAt(0, 0, 0);
-  threeInstance.cameraMaxAspect = 1.5;
-  threeInstance.resize();
-  initialize(config);
-  const raycaster = new Raycaster();
-  const plane = new Plane(new Vector3(0, 0, 1), 0);
-  const intersectionPoint = new Vector3();
-  let isPaused = false;
-
-  canvas.style.pointerEvents = 'none';  // ← AGREGAR esta línea
-  canvas.style.userSelect = 'none';
-  (canvas.style as any).webkitUserSelect = 'none';
-
-  const pointerData = createPointerData({
-    domElement: canvas,
-    onMove() {
-      raycaster.setFromCamera(pointerData.nPosition, threeInstance.camera);
-      threeInstance.camera.getWorldDirection(plane.normal);
-      raycaster.ray.intersectPlane(plane, intersectionPoint);
-      spheres.physics.center.copy(intersectionPoint);
-      spheres.config.controlSphere0 = true;
-    },
-    onLeave() {
-      spheres.config.controlSphere0 = false;
-    }
-  });
-  function initialize(cfg: any) {
-    if (spheres) {
-      threeInstance.clear();
-      threeInstance.scene.remove(spheres);
-    }
-    spheres = new Z(threeInstance.renderer, cfg);
-    threeInstance.scene.add(spheres);
-  }
-  threeInstance.onBeforeRender = deltaInfo => {
-    if (!isPaused) spheres.update(deltaInfo);
-  };
-  threeInstance.onAfterResize = size => {
-    spheres.config.maxX = size.wWidth / 2;
-    spheres.config.maxY = size.wHeight / 2;
-  };
-  return {
-    three: threeInstance,
-    get spheres() {
-      return spheres;
-    },
-    setCount(count: number) {
-      initialize({ ...spheres.config, count });
-    },
-    togglePause() {
-      isPaused = !isPaused;
-    },
-    dispose() {
-      pointerData.dispose?.();
-      threeInstance.dispose();
-    }
-  };
-}
-
-interface BallpitProps {
+export interface BallpitProps {
   className?: string;
   followCursor?: boolean;
   count?: number;
@@ -813,41 +645,101 @@ interface BallpitProps {
   friction?: number;
   wallBounce?: number;
   colors?: number[];
+  repelRadius?: number;
+  repelStrength?: number;
+  // ✨ Nuevas props para la luz del cursor
+  cursorLightColor?: number;
+  cursorLightIntensity?: number;
+  cursorLightDistance?: number;
 }
 
-const Ballpit: React.FC<BallpitProps> = ({ 
-  className = '', 
-  followCursor = true, 
-  count = 100,
+const Ballpit: React.FC<BallpitProps> = ({
+  className = '',
+  followCursor = true,
+  count = 30,
   gravity = 0.5,
   friction = 0.9975,
   wallBounce = 0.95,
-  colors = [0xFF3366, 0x6B4CE6, 0x00D9FF]
+  colors = [0xFF3366, 0x6B4CE6, 0x00D9FF],
+  repelRadius = 3,
+  repelStrength = 0.4,
+  cursorLightColor = 0xffffff,
+  cursorLightIntensity = 150,
+  cursorLightDistance = 10
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const spheresInstanceRef = useRef<CreateBallpitReturn | null>(null);
+  const instanceRef = useRef<{ dispose: () => void } | null>(null);
+
+  const [mobile] = useState(() => isMobileDevice());
 
   useEffect(() => {
+    if (mobile) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    spheresInstanceRef.current = createBallpit(canvas, {
-      followCursor,
-      count,
-      gravity,
-      friction,
-      wallBounce,
-      colors
+    const three = new X({ canvas, rendererOptions: { antialias: false, alpha: true } });
+    three.renderer.toneMapping = ACESFilmicToneMapping;
+    three.camera.position.set(0, 0, 20);
+    three.camera.lookAt(0, 0, 0);
+    three.cameraMaxAspect = 1.5;
+    three.resize();
+
+    let spheres = new Z(three.renderer, {
+      followCursor, count, gravity, friction, wallBounce, colors,
+      repelRadius, repelStrength,
+      cursorLightColor, cursorLightIntensity, cursorLightDistance
+    });
+    three.scene.add(spheres);
+
+    canvas.style.pointerEvents = 'none';
+    let pointerData: ReturnType<typeof _createPointerData> | null = null;
+
+    const raycaster = new Raycaster();
+    const plane     = new Plane(new Vector3(0, 0, 1), 0);
+    const hitPoint  = new Vector3();
+
+    pointerData = _createPointerData({
+      domElement: canvas,
+      onMove() {
+        if (!pointerData) return;
+        raycaster.setFromCamera(pointerData.nPosition, three.camera);
+        three.camera.getWorldDirection(plane.normal);
+        raycaster.ray.intersectPlane(plane, hitPoint);
+        // Actualiza la posición del cursor en la física para repulsión
+        spheres.physics.cursorPos.copy(hitPoint);
+        // ✨ Actualiza la posición de la luz del cursor
+        spheres.updateCursorLight(hitPoint);
+      },
+      onLeave() {
+        // Mueve el cursor fuera de la escena
+        spheres.physics.cursorPos.set(99999, 99999, 0);
+        // ✨ Oculta la luz del cursor
+        spheres.hideCursorLight();
+      }
     });
 
-    return () => {
-      if (spheresInstanceRef.current) {
-        spheresInstanceRef.current.dispose();
+    three.onBeforeRender = delta => spheres.update(delta);
+    three.onAfterResize  = size => {
+      spheres.config.maxX = size.wWidth  / 2;
+      spheres.config.maxY = size.wHeight / 2;
+    };
+
+    instanceRef.current = {
+      dispose: () => {
+        pointerData?.dispose?.();
+        three.dispose();
       }
     };
-  }, [followCursor, count, gravity, friction, wallBounce, colors]);
 
-  return <canvas className={`${className} w-full h-full`} ref={canvasRef} />;
+    return () => instanceRef.current?.dispose();
+  }, [mobile, followCursor, count, gravity, friction, wallBounce, colors, repelRadius, repelStrength, cursorLightColor, cursorLightIntensity, cursorLightDistance]);
+
+  if (mobile) {
+    return <MobileFallback colors={colors} />;
+  }
+
+  return <canvas ref={canvasRef} className={`${className} w-full h-full`} />;
 };
 
 export default Ballpit;

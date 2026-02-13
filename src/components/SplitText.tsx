@@ -1,5 +1,6 @@
-import React, { useRef, useEffect } from 'react';
-import { gsap } from 'gsap';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
+
+const isMobile = () => typeof window !== 'undefined' && window.innerWidth < 768;
 
 export interface SplitTextProps {
   text: string;
@@ -14,84 +15,121 @@ export interface SplitTextProps {
   onLetterAnimationComplete?: () => void;
 }
 
-const SplitText: React.FC<SplitTextProps> = ({
-  text,
-  className = '',
-  delay = 0.03,
-  duration = 0.8,
-  ease = 'power3.out',
-  splitType = 'chars',
-  from = { opacity: 0, y: 50 },
-  to = { opacity: 1, y: 0 },
-  tag = 'p',
-  onLetterAnimationComplete
+const SplitTextMobile: React.FC<SplitTextProps> = ({
+  text, className = '', delay = 0.03, duration = 0.6,
+  splitType = 'chars', tag = 'p'
 }) => {
   const containerRef = useRef<HTMLElement>(null);
-  const hasAnimated = useRef(false);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || hasAnimated.current) return;
-    
-    const chars = containerRef.current.querySelectorAll('.split-char, .split-word');
-    if (chars.length === 0) return;
-
-    // Reset para reanimación si es necesario
-    gsap.set(chars, { opacity: 1 });
-    
-    gsap.fromTo(
-      chars,
-      { ...from },
-      {
-        ...to,
-        duration,
-        ease,
-        stagger: delay,
-        onComplete: () => {
-          hasAnimated.current = true;
-          onLetterAnimationComplete?.();
-        }
-      }
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold: 0.1 }
     );
-  }, [delay, duration, ease, from, to, onLetterAnimationComplete]);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
-  const renderContent = () => {
-    if (splitType === 'chars') {
-      return text.split('').map((char, i) => (
+  const items = splitType === 'chars' ? text.split('') : text.split(' ');
+  const Tag   = tag as React.ElementType;
+
+  return (
+    <Tag ref={containerRef as any} className={`inline-block ${className}`}>
+      {items.map((item, i) => (
         <span
           key={i}
-          className="split-char inline-block will-change-transform"
-          style={{ 
-            opacity: 0,
-            whiteSpace: char === ' ' ? 'pre' : 'normal',
-            backfaceVisibility: 'hidden'
+          className="inline-block"
+          style={{
+            opacity: visible ? 1 : 0,
+            transform: visible ? 'translateY(0)' : 'translateY(16px)',
+            transition: `opacity ${duration * 0.7}s ease ${i * delay}s, transform ${duration * 0.7}s ease ${i * delay}s`,
+            whiteSpace: item === ' ' ? 'pre' : 'normal',
           }}
         >
-          {char === ' ' ? '\u00A0' : char}
+          {item === ' ' ? '\u00A0' : item}
         </span>
-      ));
-    }
-    
-    return text.split(' ').map((word, i) => (
-      <span
-        key={i}
-        className="split-word inline-block mr-[0.25em] will-change-transform"
-        style={{ opacity: 0 }}
-      >
-        {word}
-      </span>
-    ));
-  };
-
-  const Tag = tag as React.ElementType;
-  
-  return (
-    <Tag
-      ref={containerRef as any}
-      className={`split-text-container relative z-50 inline-block ${className}`}
-    >
-      {renderContent()}
+      ))}
     </Tag>
   );
+};
+
+const SplitTextDesktop: React.FC<SplitTextProps> = ({
+  text, className = '', delay = 0.03, duration = 0.8,
+  ease = 'power3.out', splitType = 'chars',
+  from = { opacity: 0, y: 50 }, to = { opacity: 1, y: 0 },
+  tag = 'p', onLetterAnimationComplete
+}) => {
+  const containerRef = useRef<HTMLElement>(null);
+  const animated     = useRef(false);
+
+  const items = useMemo(
+    () => splitType === 'chars' ? text.split('') : text.split(' '),
+    [text, splitType]
+  );
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || animated.current) return;
+
+    const obs = new IntersectionObserver(
+      async ([entry]) => {
+        if (!entry.isIntersecting) return;
+        obs.disconnect();
+
+        const { gsap } = await import('gsap');
+        const chars = el.querySelectorAll<HTMLElement>('.sc');
+        if (!chars.length) return;
+
+        const ctx = gsap.context(() => {
+          gsap.fromTo(chars, { ...from }, {
+            ...to,
+            duration,
+            ease,
+            stagger: delay,
+            clearProps: 'willChange,transform,opacity',
+            onComplete: () => {
+              animated.current = true;
+              onLetterAnimationComplete?.();
+            }
+          });
+        }, el);
+
+        return () => ctx.revert();
+      },
+      { threshold: 0.1 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [delay, duration, ease, from, to, onLetterAnimationComplete]);
+
+  const Tag = tag as React.ElementType;
+
+  return (
+    <Tag ref={containerRef as any} className={`inline-block ${className}`}>
+      {items.map((item, i) => (
+        <span
+          key={i}
+          className="sc inline-block"
+          style={{
+            opacity: 0,
+            whiteSpace: item === ' ' ? 'pre' : 'normal',
+          }}
+        >
+          {item === ' ' ? '\u00A0' : item}
+        </span>
+      ))}
+    </Tag>
+  );
+};
+
+const SplitText: React.FC<SplitTextProps> = (props) => {
+  const [mobile] = useState(() => isMobile());
+  return mobile
+    ? <SplitTextMobile  {...props} />
+    : <SplitTextDesktop {...props} />;
 };
 
 export default SplitText;
