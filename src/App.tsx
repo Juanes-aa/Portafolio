@@ -55,7 +55,8 @@ const HomePage = () => {
     const width = window.innerWidth;
     if (width >= 1920) return 80;  // Pantallas grandes (2K, 4K)
     if (width >= 1280) return 70;  // Desktop estándar
-    return 60;                      // Laptops pequeñas
+    if (width >= 768) return 55;   // Tablets / laptops pequeñas
+    return 26;                     // Mobile                // Laptops pequeñas
   };
 
   const [ballCount] = useState(getBallCount);

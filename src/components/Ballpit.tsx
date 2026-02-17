@@ -13,7 +13,7 @@
  * 5. ✨ NUEVO: Luz del cursor que sigue el mouse y se refleja en las bolas
  */
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   Clock,
   PerspectiveCamera,
@@ -43,32 +43,6 @@ import { Observer } from 'gsap/Observer';
 import { gsap } from 'gsap';
 
 gsap.registerPlugin(Observer);
-
-// ─── Utilidad: detectar mobile ────────────────────────────────────────────────
-const isMobileDevice = () =>
-  typeof window !== 'undefined' && window.innerWidth < 768;
-
-// ─── Fallback CSS para mobile ─────────────────────────────────────────────────
-const MobileFallback: React.FC<{ colors: number[] }> = ({ colors }) => {
-  // Convierte los colores hex numéricos a CSS
-  const toCSS = (hex: number) =>
-    `#${hex.toString(16).padStart(6, '0')}`;
-
-  const c1 = toCSS(colors[0] ?? 0xe63946);
-  const c2 = toCSS(colors[1] ?? 0x9b2226);
-  const c3 = toCSS(colors[2] ?? 0x660708);
-
-  return (
-    <div
-      className="w-full h-full"
-      style={{
-        background: `radial-gradient(ellipse at 20% 20%, ${c1}22 0%, transparent 50%),
-                     radial-gradient(ellipse at 80% 80%, ${c2}22 0%, transparent 50%),
-                     radial-gradient(ellipse at 50% 50%, ${c3}15 0%, transparent 60%)`,
-      }}
-    />
-  );
-};
 
 // ─── Three.js internals (sin cambios funcionales, solo parámetros) ─────────────
 
@@ -670,10 +644,7 @@ const Ballpit: React.FC<BallpitProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const instanceRef = useRef<{ dispose: () => void } | null>(null);
 
-  const [mobile] = useState(() => isMobileDevice());
-
   useEffect(() => {
-    if (mobile) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -733,11 +704,7 @@ const Ballpit: React.FC<BallpitProps> = ({
     };
 
     return () => instanceRef.current?.dispose();
-  }, [mobile, followCursor, count, gravity, friction, wallBounce, colors, repelRadius, repelStrength, cursorLightColor, cursorLightIntensity, cursorLightDistance]);
-
-  if (mobile) {
-    return <MobileFallback colors={colors} />;
-  }
+  }, [followCursor, count, gravity, friction, wallBounce, colors, repelRadius, repelStrength, cursorLightColor, cursorLightIntensity, cursorLightDistance]);
 
   return <canvas ref={canvasRef} className={`${className} w-full h-full`} />;
 };
