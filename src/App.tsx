@@ -297,6 +297,7 @@ const HomePage = () => {
                 desc:  'Calculadora científica web orientada a ingeniería con tres motores de cálculo: aritmética, álgebra y trigonometría. Backend en FastAPI.',
                 tags:  ['React', 'FastAPI', 'Python', 'Vercel'],
                 href:  'https://github.com/Juanes-aa/CalcIng',
+                demo:  'https://portafolio-eta-olive.vercel.app/',
                 from:  'from-[#FF6B6B]/30', to: 'to-[#E63946]/30'
               },
               {
@@ -305,6 +306,7 @@ const HomePage = () => {
                 desc:  'Plataforma de análisis cinematográfico con IA. Analiza películas en conversación con Llama 3.3, construye perfil intelectual y recibe recomendaciones personalizadas.',
                 tags:  ['React', 'TypeScript', 'FastAPI', 'Supabase', 'Groq'],
                 href:  'https://github.com/Juanes-aa/Lumen',
+                demo:  'https://lumen-six-cyan.vercel.app/',
                 from:  'from-[#660708]/30', to: 'to-[#E63946]/30'
               }
             ].map(project => (
@@ -325,14 +327,26 @@ const HomePage = () => {
                       <span key={tag} className="text-xs px-3 py-1 rounded-full bg-[#E63946]/20 text-[#FF6B6B]">{tag}</span>
                     ))}
                   </div>
-                  <a
-                    href={project.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-[#E63946] hover:text-[#FF6B6B] transition-colors"
-                  >
-                    Ver en GitHub →
-                  </a>
+                  <div className="flex gap-4">
+                    {project.demo && (
+                      <a
+                        href={project.demo}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-[#E63946] hover:text-[#FF6B6B] transition-colors"
+                      >
+                        Ver Demo →
+                      </a>
+                    )}
+                    <a
+                      href={project.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors"
+                    >
+                      GitHub →
+                    </a>
+                  </div>
                 </div>
               </TiltCard>
             ))}
