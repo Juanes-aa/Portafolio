@@ -1,340 +1,161 @@
-# 🎨 Portafolio Juan Esteban López Moreno
+<p align="center">
+  <img src="./docs/readme-banner.svg" alt="Banner del portafolio de Juan Esteban Lopez Moreno" width="100%" />
+</p>
 
-Portafolio personal moderno construido con React, TypeScript, Tailwind CSS y animaciones GSAP.
+<h1 align="center">Portafolio | Juan Esteban Lopez Moreno</h1>
 
-![Portfolio Preview](https://img.shields.io/badge/React-18.2-61DAFB?style=for-the-badge&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?style=for-the-badge&logo=typescript)
-![Tailwind](https://img.shields.io/badge/Tailwind-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)
+<p align="center">
+  Portafolio frontend interactivo creado para presentar perfil profesional, proyectos
+  destacados y contacto, con animacion, profundidad visual e identidad propia.
+</p>
 
-## ✨ Características
+<p align="center">
+  <strong>Desarrollador Frontend</strong> | <strong>Desarrollo Creativo</strong> | <strong>Medellin, Colombia</strong>
+</p>
 
-- ⚛️ **React 18** con TypeScript
-- 🎨 **Tailwind CSS** para estilos
-- 🎭 **GSAP** para animaciones avanzadas
-- 🎪 **Three.js** para efectos 3D (Ballpit)
-- 🧩 **shadcn/ui** componentes UI
-- 📱 **Responsive Design** completo
-- 🚀 **Vite** como build tool
-- 📬 **Formulario de contacto** con backend serverless
+<p align="center">
+  <a href="https://github.com/Juanes-aa/Portafolio">
+    <img src="https://img.shields.io/badge/Repositorio-Portafolio-0f172a?style=for-the-badge&logo=github&logoColor=white&labelColor=111827&color=E63946" alt="Badge del repositorio" />
+  </a>
+  <img src="https://img.shields.io/badge/React-18-0f172a?style=for-the-badge&logo=react&logoColor=61DAFB&labelColor=111827&color=0f172a" alt="Badge de React 18" />
+  <img src="https://img.shields.io/badge/TypeScript-5-0f172a?style=for-the-badge&logo=typescript&logoColor=3178C6&labelColor=111827&color=0f172a" alt="Badge de TypeScript 5" />
+  <img src="https://img.shields.io/badge/Vite-5-0f172a?style=for-the-badge&logo=vite&logoColor=FFD62E&labelColor=111827&color=0f172a" alt="Badge de Vite 5" />
+  <img src="https://img.shields.io/badge/GSAP-Animacion-0f172a?style=for-the-badge&logo=greensock&logoColor=88CE02&labelColor=111827&color=0f172a" alt="Badge de GSAP" />
+  <img src="https://img.shields.io/badge/Three.js-3D-0f172a?style=for-the-badge&logo=threedotjs&logoColor=white&labelColor=111827&color=0f172a" alt="Badge de Three.js" />
+</p>
 
-## 📦 Instalación
+<p align="center">
+  <a href="#resumen"><strong>Resumen</strong></a>
+  |
+  <a href="#destacados"><strong>Destacados</strong></a>
+  |
+  <a href="#stack"><strong>Stack</strong></a>
+  |
+  <a href="#ejecucion-local"><strong>Ejecucion local</strong></a>
+  |
+  <a href="#mapa-del-proyecto"><strong>Mapa del proyecto</strong></a>
+</p>
 
-### 1. Instalar dependencias
+<p align="center">
+  <img src="./docs/readme-preview.svg" alt="Vista previa visual del portafolio" width="100%" />
+</p>
+
+## Resumen
+
+Este repositorio contiene el portafolio personal de Juan Esteban Lopez Moreno, pensado como una experiencia web cuidada y no como una simple hoja de vida subida a internet.
+
+El sitio presenta:
+
+- una landing con hero animado, secciones de presentacion, proyectos y stack
+- una ruta `/contacto` dedicada para oportunidades profesionales
+- proyectos frontend destacados con identidad visual roja y oscura
+- una implementacion que busca equilibrio entre impacto visual y rendimiento
+
+> La idea es que el portafolio se sienta vivo, intencional y memorable desde el primer scroll.
+
+## Destacados
+
+| Area | Lo que destaca |
+| --- | --- |
+| Hero | Animacion de texto, estadisticas flotantes, botones magneticos y una entrada visual con mucha presencia |
+| Identidad visual | Fondo oscuro, acentos rojos, cards transluidas y componentes propios en vez de una plantilla generica |
+| Rendimiento | Ruta de contacto con carga diferida, division de chunks y alternativa para mobile en los visuales mas pesados |
+| Contacto | La pagina visible usa `EmailJS` y el repo incluye ademas una alternativa serverless en `backend/` |
+
+## Stack
+
+### Frontend
+
+- `React 18`
+- `TypeScript`
+- `Vite`
+- `Tailwind CSS`
+- `React Router DOM`
+
+### Animacion e interfaz
+
+- `GSAP`
+- `Three.js`
+- `cannon-es`
+- `Radix UI`
+- `shadcn/ui`
+- `React Icons`
+
+### Integracion de contacto
+
+- `EmailJS` en [src/Contacto.tsx](src/Contacto.tsx)
+- backend opcional con Netlify Functions en [backend/netlify/functions/contact.js](backend/netlify/functions/contact.js)
+- `Nodemailer` en la implementacion serverless
+
+## Ejecucion local
 
 ```bash
 npm install
-```
-
-### 2. Configurar variables de entorno (Opcional)
-
-Si vas a probar con el backend local:
-
-```bash
-cp .env.example .env.local
-```
-
-Edita `.env.local`:
-```env
-VITE_API_URL=http://localhost:8888/.netlify/functions
-```
-
-### 3. Iniciar servidor de desarrollo
-
-```bash
 npm run dev
 ```
 
-Abre [http://localhost:5173](http://localhost:5173) en tu navegador.
+Abre `http://localhost:5173`.
 
-## 🚀 Scripts Disponibles
+### Scripts disponibles
 
-| Comando | Descripción |
-|---------|-------------|
-| `npm run dev` | Inicia servidor de desarrollo |
-| `npm run build` | Construye para producción |
-| `npm run preview` | Preview del build de producción |
-| `npm run lint` | Ejecuta el linter |
+| Comando | Descripcion |
+| --- | --- |
+| `npm run dev` | Inicia el servidor local |
+| `npm run build` | Genera el build de produccion |
+| `npm run preview` | Previsualiza el build local |
+| `npm run lint` | Ejecuta ESLint |
 
-## 📁 Estructura del Proyecto
+## Mapa del proyecto
 
-```
-portfolio-frontend/
-├── public/                 # Archivos estáticos
-│   └── vite.svg
-├── src/
-│   ├── assets/            # Imágenes y assets
-│   │   ├── foto.png       # Foto de perfil
-│   │   └── react.svg
-│   ├── components/        # Componentes React
-│   │   ├── ui/            # Componentes UI de shadcn
-│   │   ├── Ballpit.tsx    # Animación 3D de fondo
-│   │   ├── CardNav.tsx    # Navegación con cards
-│   │   ├── MagneticButton.tsx
-│   │   ├── SplitText.tsx
-│   │   ├── TextReveal.tsx
-│   │   ├── TiltCard.tsx
-│   │   ├── FloatingStats.tsx
-│   │   ├── FeatureSection.tsx
-│   │   └── GlowText.tsx
-│   ├── hooks/             # Custom hooks
-│   │   ├── use-mobile.ts
-│   │   └── useContactForm.ts
-│   ├── lib/               # Utilidades
-│   │   └── utils.ts
-│   ├── App.tsx            # Componente principal
-│   ├── Contacto.tsx       # Página de contacto
-│   ├── main.tsx           # Entry point
-│   └── index.css          # Estilos globales
-├── index.html
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-├── tailwind.config.js
-└── README.md
+| Archivo | Funcion |
+| --- | --- |
+| [src/App.tsx](src/App.tsx) | Landing principal, rutas y carga diferida de contacto |
+| [src/Contacto.tsx](src/Contacto.tsx) | Pagina de contacto con validacion y `EmailJS` |
+| [src/components/Ballpit.tsx](src/components/Ballpit.tsx) | Fondo 3D con alternativa para mobile y optimizaciones de rendimiento |
+| [src/components/CardNav.tsx](src/components/CardNav.tsx) | Navegacion expandible basada en cards |
+| [vite.config.ts](vite.config.ts) | Optimizacion del build y estrategia de chunks |
+| [backend/netlify/functions/contact.js](backend/netlify/functions/contact.js) | Funcion serverless opcional para contacto |
+
+<details>
+<summary><strong>Estructura del proyecto</strong></summary>
+
+```text
+Portafolio/
+|-- docs/                      # assets visuales del README
+|-- public/                    # archivos publicos
+|-- src/
+|   |-- assets/                # imagenes locales
+|   |-- components/            # componentes UI y visuales
+|   |-- hooks/                 # hooks del frontend
+|   |-- lib/                   # utilidades
+|   |-- App.tsx                # experiencia principal
+|   |-- Contacto.tsx           # ruta de contacto
+|   |-- index.css              # estilos globales
+|   `-- main.tsx               # entrypoint
+|-- backend/                   # capa serverless opcional
+|-- package.json
+|-- vite.config.ts
+`-- README.md
 ```
 
-## 🎨 Paleta de Colores
+</details>
 
-| Color | Hex | Uso |
-|-------|-----|-----|
-| Primary Red | `#E63946` | Acentos principales |
-| Dark Red | `#9B2226` | Gradientes |
-| Light Red | `#FF6B6B` | Hover states |
-| Deep Red | `#660708` | Detalles |
-| Background | `#0a0a0a` | Fondo principal |
+## Arquitectura de contacto
 
-## 🔧 Tecnologías
+La pagina de contacto visible hoy usa `EmailJS` directamente desde el frontend.
 
-### Core
-- React 18.2
-- TypeScript 5.3
-- Vite 5.1
+Si quieres mover el envio a servidor, el repositorio ya incluye una alternativa con Netlify Functions, validacion y `Nodemailer`. Ese flujo parte desde [src/hooks/useContactForm.ts](src/hooks/useContactForm.ts) y continua en [backend/netlify/functions/contact.js](backend/netlify/functions/contact.js).
 
-### Styling
-- Tailwind CSS 3.4
-- PostCSS
-- Autoprefixer
+## Por que el codigo es interesante
 
-### Animaciones
-- GSAP 3.12
-- Three.js 0.160
-- Cannon-es (física)
+- [src/components/Ballpit.tsx](src/components/Ballpit.tsx) no asume que el impacto visual es gratis: tiene alternativa para mobile, importaciones diferidas y controles para no disparar costo innecesario.
+- [vite.config.ts](vite.config.ts) separa dependencias pesadas en chunks dedicados para cuidar la carga inicial.
+- [src/App.tsx](src/App.tsx) carga la ruta de contacto de forma diferida y hace prefetch para suavizar la navegacion.
 
-### UI Components
-- Radix UI (primitivos)
-- shadcn/ui
-- Lucide React (iconos)
-- React Icons
+## Autor
 
-### Routing
-- React Router DOM 6.22
+Juan Esteban Lopez Moreno
 
-### Forms & Validation
-- Custom hook useContactForm
-- Client + Server validation
-
-## 📬 Formulario de Contacto
-
-El formulario de contacto se integra con un backend serverless en Netlify Functions.
-
-### Configuración
-
-1. **Actualizar URL del backend**
-
-En `src/hooks/useContactForm.ts`, la URL se configura automáticamente:
-- Desarrollo: `http://localhost:8888/.netlify/functions`
-- Producción: `/.netlify/functions`
-
-2. **Variables de entorno** (opcional)
-
-Crear `.env.local`:
-```env
-VITE_API_URL=https://tu-sitio.netlify.app/.netlify/functions
-```
-
-### Uso en componentes
-
-```typescript
-import { useContactForm } from './hooks/useContactForm';
-
-const MiComponente = () => {
-  const { submitForm, isSubmitting, submitStatus } = useContactForm();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    await submitForm({
-      name: 'Juan',
-      email: 'juan@example.com',
-      message: 'Hola!'
-    });
-  };
-};
-```
-
-## 🌐 Deploy
-
-### Netlify (Recomendado)
-
-1. **Conectar con GitHub**
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/tu-usuario/tu-repo.git
-git push -u origin main
-```
-
-2. **Configurar en Netlify**
-- Ir a [app.netlify.com](https://app.netlify.com)
-- "New site from Git"
-- Seleccionar tu repositorio
-- Build command: `npm run build`
-- Publish directory: `dist`
-- Deploy!
-
-3. **Variables de entorno** (si usas backend en el mismo sitio)
-- Site settings → Environment variables
-- Agregar: `VITE_API_URL=/.netlify/functions`
-
-### Vercel
-
-```bash
-npm install -g vercel
-vercel
-```
-
-### Build manual
-
-```bash
-npm run build
-```
-
-Los archivos estarán en `/dist`
-
-## 🔒 Variables de Entorno
-
-| Variable | Descripción | Ejemplo |
-|----------|-------------|---------|
-| `VITE_API_URL` | URL del backend | `/.netlify/functions` |
-
-## 📱 Responsive Breakpoints
-
-```css
-sm: 640px   /* Mobile landscape */
-md: 768px   /* Tablet */
-lg: 1024px  /* Desktop */
-xl: 1280px  /* Large desktop */
-2xl: 1536px /* Extra large */
-```
-
-## 🎯 Características Principales
-
-### 🏠 Home Page
-- Animación de texto character-by-character
-- Fondo interactivo con física (Ballpit)
-- Estadísticas flotantes
-- Navegación con cards animadas
-- Secciones: About, Projects, Skills, Contact
-
-### 📧 Página de Contacto
-- Formulario validado
-- Animaciones con GSAP
-- Feedback visual
-- Integración con backend serverless
-- Diseño profesional
-
-### 🎨 Componentes Reutilizables
-- `MagneticButton` - Botones con efecto magnético
-- `SplitText` - Animación de texto
-- `TiltCard` - Cards con efecto tilt 3D
-- `TextReveal` - Reveal de texto con scroll
-- `FloatingStats` - Estadísticas animadas
-
-## 🐛 Troubleshooting
-
-### Error: "Cannot find module '@/...'"
-
-Verifica que `tsconfig.json` tiene:
-```json
-{
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  }
-}
-```
-
-### Animaciones no funcionan
-
-Instala GSAP:
-```bash
-npm install gsap
-```
-
-### Three.js errores
-
-```bash
-npm install three @types/three cannon-es
-```
-
-### Formulario no envía
-
-1. Verifica que el backend está corriendo
-2. Revisa la URL en `useContactForm.ts`
-3. Verifica CORS en el backend
-
-## 📝 Personalización
-
-### Cambiar colores
-
-Edita `tailwind.config.js` y `src/index.css`
-
-### Cambiar información personal
-
-- `src/App.tsx` - Información home
-- `src/Contacto.tsx` - Email y datos de contacto
-- `index.html` - Meta tags
-
-### Agregar sección
-
-```tsx
-<section id="nueva-seccion" className="relative z-10 py-32 px-6">
-  {/* Tu contenido */}
-</section>
-```
-
-## 🤝 Contribuir
-
-1. Fork el proyecto
-2. Crea tu feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push al branch (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
-## 📄 Licencia
-
-Este proyecto es de código abierto y está disponible bajo la licencia MIT.
-
-## 👤 Autor
-
-**Juan Esteban López Moreno**
 - GitHub: [@Juanes-aa](https://github.com/Juanes-aa)
-- Email: j8716184m@gmail.com
-- Ubicación: Medellín, Colombia 🇨🇴
-
-## 🙏 Agradecimientos
-
-- [Vite](https://vitejs.dev/)
-- [React](https://react.dev/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [GSAP](https://greensock.com/gsap/)
-- [shadcn/ui](https://ui.shadcn.com/)
-- [Radix UI](https://www.radix-ui.com/)
-
----
-
-**Desarrollado con ❤️ en Medellín, Colombia**
-
-¿Tienes preguntas? [Contáctame](mailto:j8716184m@gmail.com)
+- Email: [j8716184m@gmail.com](mailto:j8716184m@gmail.com)
+- Ubicacion: Medellin, Colombia

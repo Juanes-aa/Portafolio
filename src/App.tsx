@@ -273,7 +273,7 @@ const HomePage = () => {
             <p className="text-white/40 text-base sm:text-lg">Trabajos que demuestran mis habilidades</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             {[
               {
                 emoji: '🍽️',
@@ -290,6 +290,22 @@ const HomePage = () => {
                 tags:  ['HTML', 'Tailwind CSS'],
                 href:  'https://github.com/Juanes-aa/quipux',
                 from:  'from-[#9B2226]/30', to: 'to-[#660708]/30'
+              },
+              {
+                emoji: '🧮',
+                title: 'CalcIng',
+                desc:  'Calculadora científica web orientada a ingeniería con tres motores de cálculo: aritmética, álgebra y trigonometría. Backend en FastAPI.',
+                tags:  ['React', 'FastAPI', 'Python', 'Vercel'],
+                href:  'https://github.com/Juanes-aa/CalcIng',
+                from:  'from-[#FF6B6B]/30', to: 'to-[#E63946]/30'
+              },
+              {
+                emoji: '🎬',
+                title: 'Lumen',
+                desc:  'Plataforma de análisis cinematográfico con IA. Analiza películas en conversación con Llama 3.3, construye perfil intelectual y recibe recomendaciones personalizadas.',
+                tags:  ['React', 'TypeScript', 'FastAPI', 'Supabase', 'Groq'],
+                href:  'https://github.com/Juanes-aa/Lumen',
+                from:  'from-[#660708]/30', to: 'to-[#E63946]/30'
               }
             ].map(project => (
               <TiltCard
