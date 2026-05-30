@@ -1,161 +1,142 @@
-<p align="center">
-  <img src="./docs/readme-banner.svg" alt="Banner del portafolio de Juan Esteban Lopez Moreno" width="100%" />
-</p>
+Portafolio de Juan Esteban Lopez Moreno
+Portafolio personal construido para presentar el perfil de Juan Esteban como Frontend Developer y Creative Coder. El proyecto funciona como una experiencia web interactiva donde se muestran su presentacion profesional, habilidades, proyectos destacados y una pagina de contacto pensada para oportunidades laborales, freelance y colaboraciones.
 
-<h1 align="center">Portafolio | Juan Esteban Lopez Moreno</h1>
+No es una plantilla generica de portfolio. La app combina animaciones, navegacion personalizada, efectos visuales con Three.js y decisiones de performance para que la experiencia siga siendo fluida tanto en desktop como en mobile.
 
-<p align="center">
-  Portafolio frontend interactivo creado para presentar perfil profesional, proyectos
-  destacados y contacto, con animacion, profundidad visual e identidad propia.
-</p>
+Que muestra este proyecto
 
-<p align="center">
-  <strong>Desarrollador Frontend</strong> | <strong>Desarrollo Creativo</strong> | <strong>Medellin, Colombia</strong>
-</p>
+Una landing principal con hero animado, seccion "Sobre mi", proyectos recientes, stack tecnico y llamado a la accion.
 
-<p align="center">
-  <a href="https://github.com/Juanes-aa/Portafolio">
-    <img src="https://img.shields.io/badge/Repositorio-Portafolio-0f172a?style=for-the-badge&logo=github&logoColor=white&labelColor=111827&color=E63946" alt="Badge del repositorio" />
-  </a>
-  <img src="https://img.shields.io/badge/React-18-0f172a?style=for-the-badge&logo=react&logoColor=61DAFB&labelColor=111827&color=0f172a" alt="Badge de React 18" />
-  <img src="https://img.shields.io/badge/TypeScript-5-0f172a?style=for-the-badge&logo=typescript&logoColor=3178C6&labelColor=111827&color=0f172a" alt="Badge de TypeScript 5" />
-  <img src="https://img.shields.io/badge/Vite-5-0f172a?style=for-the-badge&logo=vite&logoColor=FFD62E&labelColor=111827&color=0f172a" alt="Badge de Vite 5" />
-  <img src="https://img.shields.io/badge/GSAP-Animacion-0f172a?style=for-the-badge&logo=greensock&logoColor=88CE02&labelColor=111827&color=0f172a" alt="Badge de GSAP" />
-  <img src="https://img.shields.io/badge/Three.js-3D-0f172a?style=for-the-badge&logo=threedotjs&logoColor=white&labelColor=111827&color=0f172a" alt="Badge de Three.js" />
-</p>
+Una ruta /contacto dedicada para captar leads y facilitar el contacto profesional.
 
-<p align="center">
-  <a href="#resumen"><strong>Resumen</strong></a>
-  |
-  <a href="#destacados"><strong>Destacados</strong></a>
-  |
-  <a href="#stack"><strong>Stack</strong></a>
-  |
-  <a href="#ejecucion-local"><strong>Ejecucion local</strong></a>
-  |
-  <a href="#mapa-del-proyecto"><strong>Mapa del proyecto</strong></a>
-</p>
+Dos proyectos destacados dentro del portafolio: un sistema de reservas para catering y un proyecto de maquetacion responsive.
 
-<p align="center">
-  <img src="./docs/readme-preview.svg" alt="Vista previa visual del portafolio" width="100%" />
-</p>
+Una identidad visual oscura con acentos rojos, componentes interactivos y microinteracciones personalizadas.
 
-## Resumen
 
-Este repositorio contiene el portafolio personal de Juan Esteban Lopez Moreno, pensado como una experiencia web cuidada y no como una simple hoja de vida subida a internet.
+Caracteristicas principales
 
-El sitio presenta:
+React + TypeScript + Vite como base del frontend.
 
-- una landing con hero animado, secciones de presentacion, proyectos y stack
-- una ruta `/contacto` dedicada para oportunidades profesionales
-- proyectos frontend destacados con identidad visual roja y oscura
-- una implementacion que busca equilibrio entre impacto visual y rendimiento
+Animaciones con GSAP y componentes visuales propios como SplitText, MagneticButton, TiltCard y TextReveal.
 
-> La idea es que el portafolio se sienta vivo, intencional y memorable desde el primer scroll.
+Fondo Ballpit con Three.js y cannon-es, optimizado para no penalizar la experiencia en mobile.
 
-## Destacados
+Navegacion superior expandible con tarjetas y accesos a secciones internas o enlaces externos.
 
-| Area | Lo que destaca |
-| --- | --- |
-| Hero | Animacion de texto, estadisticas flotantes, botones magneticos y una entrada visual con mucha presencia |
-| Identidad visual | Fondo oscuro, acentos rojos, cards transluidas y componentes propios en vez de una plantilla generica |
-| Rendimiento | Ruta de contacto con carga diferida, division de chunks y alternativa para mobile en los visuales mas pesados |
-| Contacto | La pagina visible usa `EmailJS` y el repo incluye ademas una alternativa serverless en `backend/` |
+Carga diferida de la pagina de contacto para reducir el peso del bundle inicial.
 
-## Stack
+Build optimizado con separacion de chunks para three, gsap, react y dependencias de UI.
 
-### Frontend
 
-- `React 18`
-- `TypeScript`
-- `Vite`
-- `Tailwind CSS`
-- `React Router DOM`
+Arquitectura del contacto
+Actualmente la pagina Contacto.tsx envia mensajes usando EmailJS desde el frontend.
 
-### Animacion e interfaz
+Ademas, el repositorio incluye una alternativa serverless en contact.js junto con el hook useContactForm.ts. Esa parte sirve como base para mover el formulario a Netlify Functions si quieres usar envio desde backend en lugar de EmailJS.
 
-- `GSAP`
-- `Three.js`
-- `cannon-es`
-- `Radix UI`
-- `shadcn/ui`
-- `React Icons`
+Stack tecnico
+Frontend
 
-### Integracion de contacto
+React 18
 
-- `EmailJS` en [src/Contacto.tsx](src/Contacto.tsx)
-- backend opcional con Netlify Functions en [backend/netlify/functions/contact.js](backend/netlify/functions/contact.js)
-- `Nodemailer` en la implementacion serverless
+TypeScript
 
-## Ejecucion local
+Vite
 
-```bash
-npm install
-npm run dev
-```
+Tailwind CSS
 
-Abre `http://localhost:5173`.
+React Router DOM
 
-### Scripts disponibles
 
-| Comando | Descripcion |
-| --- | --- |
-| `npm run dev` | Inicia el servidor local |
-| `npm run build` | Genera el build de produccion |
-| `npm run preview` | Previsualiza el build local |
-| `npm run lint` | Ejecuta ESLint |
+Animacion e interfaz
 
-## Mapa del proyecto
+GSAP
 
-| Archivo | Funcion |
-| --- | --- |
-| [src/App.tsx](src/App.tsx) | Landing principal, rutas y carga diferida de contacto |
-| [src/Contacto.tsx](src/Contacto.tsx) | Pagina de contacto con validacion y `EmailJS` |
-| [src/components/Ballpit.tsx](src/components/Ballpit.tsx) | Fondo 3D con alternativa para mobile y optimizaciones de rendimiento |
-| [src/components/CardNav.tsx](src/components/CardNav.tsx) | Navegacion expandible basada en cards |
-| [vite.config.ts](vite.config.ts) | Optimizacion del build y estrategia de chunks |
-| [backend/netlify/functions/contact.js](backend/netlify/functions/contact.js) | Funcion serverless opcional para contacto |
+Three.js
 
-<details>
-<summary><strong>Estructura del proyecto</strong></summary>
+cannon-es
 
-```text
+Radix UI
+
+shadcn/ui
+
+React Icons
+
+
+Integracion de contacto
+
+EmailJS
+
+Netlify Functions opcional en backend/
+
+Nodemailer en la implementacion serverless
+
+
+Estructura del proyecto
+text
+
+
+
 Portafolio/
-|-- docs/                      # assets visuales del README
-|-- public/                    # archivos publicos
+|-- public/                     # favicon y assets publicos
 |-- src/
-|   |-- assets/                # imagenes locales
-|   |-- components/            # componentes UI y visuales
-|   |-- hooks/                 # hooks del frontend
+|   |-- assets/                # imagenes del portfolio
+|   |-- components/            # componentes visuales y de navegacion
+|   |-- hooks/                 # hooks de soporte, incluido contacto serverless
 |   |-- lib/                   # utilidades
-|   |-- App.tsx                # experiencia principal
-|   |-- Contacto.tsx           # ruta de contacto
-|   |-- index.css              # estilos globales
+|   |-- App.tsx                # landing principal y rutas
+|   |-- Contacto.tsx           # pagina de contacto con EmailJS
+|   |-- index.css              # estilos base y ajustes globales
 |   `-- main.tsx               # entrypoint
-|-- backend/                   # capa serverless opcional
+|-- backend/                   # alternativa serverless con Netlify Functions
 |-- package.json
 |-- vite.config.ts
 `-- README.md
-```
 
-</details>
 
-## Arquitectura de contacto
 
-La pagina de contacto visible hoy usa `EmailJS` directamente desde el frontend.
+Ejecucion local
+bash
 
-Si quieres mover el envio a servidor, el repositorio ya incluye una alternativa con Netlify Functions, validacion y `Nodemailer`. Ese flujo parte desde [src/hooks/useContactForm.ts](src/hooks/useContactForm.ts) y continua en [backend/netlify/functions/contact.js](backend/netlify/functions/contact.js).
 
-## Por que el codigo es interesante
 
-- [src/components/Ballpit.tsx](src/components/Ballpit.tsx) no asume que el impacto visual es gratis: tiene alternativa para mobile, importaciones diferidas y controles para no disparar costo innecesario.
-- [vite.config.ts](vite.config.ts) separa dependencias pesadas en chunks dedicados para cuidar la carga inicial.
-- [src/App.tsx](src/App.tsx) carga la ruta de contacto de forma diferida y hace prefetch para suavizar la navegacion.
+npm install
+npm run dev
 
-## Autor
 
+
+La aplicacion queda disponible en http://localhost:5173.
+
+Scripts
+Comando	Descripcion
+npm run dev	Inicia el entorno de desarrollo
+npm run build	Genera el build de produccion
+npm run preview	Previsualiza el build localmente
+npm run lint	Ejecuta ESLint
+
+Si quieres usar la alternativa serverless
+Entra a backend/.
+Instala sus dependencias.
+Configura las variables EMAIL_USER y EMAIL_PASS.
+Levanta Netlify localmente con el script definido en backend/package.json.
+
+Esa capa no es la que consume hoy la pagina principal de contacto, pero ya esta incluida en el repositorio como base de integracion.
+
+Lo mas destacable del codigo
+
+En Ballpit.tsx hay una estrategia clara de optimizacion: fallback visual en mobile, lazy import de Three.js y control del pixelRatio.
+
+En vite.config.ts el build separa dependencias pesadas para mejorar carga inicial y cache.
+
+En App.tsx la ruta de contacto se carga de forma diferida y se hace prefetch para mejorar la navegacion.
+
+
+Autor
 Juan Esteban Lopez Moreno
 
-- GitHub: [@Juanes-aa](https://github.com/Juanes-aa)
-- Email: [j8716184m@gmail.com](mailto:j8716184m@gmail.com)
-- Ubicacion: Medellin, Colombia
+
+GitHub: @Juanes-aa
+
+Email: j8716184m@gmail.com
+
+Ubicacion: Medellin, Colombia
